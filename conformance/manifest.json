@@ -226,6 +226,66 @@
       "specSection": "§6.6"
     },
     {
+      "id": "structural-suppress-rule-missing-target-rule",
+      "path": "structural/suppress-rule-missing-target-rule.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
+        "path": "/exceptions/0/targetRule"
+      },
+      "focus": "suppress-rule exception requires its targetRule operand",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-suppress-rule-forbidden-outcome",
+      "path": "structural/suppress-rule-forbidden-outcome.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
+        "path": "/exceptions/0"
+      },
+      "focus": "suppress-rule exception forbids an outcome operand",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-force-outcome-forbidden-target-rule",
+      "path": "structural/force-outcome-forbidden-target-rule.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
+        "path": "/exceptions/0"
+      },
+      "focus": "force-outcome exception forbids a targetRule operand",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-escalate-forbidden-target-rule",
+      "path": "structural/escalate-forbidden-target-rule.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
+        "path": "/exceptions/0"
+      },
+      "focus": "escalate exception forbids a targetRule operand",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-escalate-forbidden-outcome",
+      "path": "structural/escalate-forbidden-outcome.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
+        "path": "/exceptions/0"
+      },
+      "focus": "escalate exception forbids an outcome operand",
+      "specSection": "§6.6"
+    },
+    {
       "id": "structural-unqualified-extension",
       "path": "structural/unqualified-extension.json",
       "layer": "structural",
