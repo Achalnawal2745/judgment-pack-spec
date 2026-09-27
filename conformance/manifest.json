@@ -382,6 +382,90 @@
       "specSection": "§2.2"
     },
     {
+      "id": "structural-decimal-operand-leading-plus",
+      "path": "structural/decimal-operand-leading-plus.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands with a leading plus sign",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-leading-zeros",
+      "path": "structural/decimal-operand-leading-zeros.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands with prohibited leading zeroes",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-bare-fraction",
+      "path": "structural/decimal-operand-bare-fraction.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands lacking an integer part before the point",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-trailing-point",
+      "path": "structural/decimal-operand-trailing-point.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands with a trailing decimal point and no fractional digits",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-exponent",
+      "path": "structural/decimal-operand-exponent.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands using exponent notation",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-surrounding-whitespace",
+      "path": "structural/decimal-operand-surrounding-whitespace.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects decimal operands with surrounding whitespace",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "structural-decimal-operand-empty",
+      "path": "structural/decimal-operand-empty.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-DECIMAL-OPERAND",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "ordered comparison rejects an empty string as a decimal operand",
+      "specSection": "§2.2"
+    },
+    {
       "id": "structural-invalid-in-operand",
       "path": "structural/invalid-in-operand.json",
       "layer": "structural",
@@ -696,6 +780,33 @@
       "expectedDiagnostic": null,
       "focus": "complete cross-feature expense-approval example",
       "specSection": "§§4–9"
+    },
+    {
+      "id": "valid-decimal-operand-negative",
+      "path": "valid/decimal-operand-negative.json",
+      "layer": "semantic",
+      "expectedResult": "valid",
+      "expectedDiagnostic": null,
+      "focus": "ordered comparison accepts a negative fractional decimal operand",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "valid-decimal-operand-trailing-zero",
+      "path": "valid/decimal-operand-trailing-zero.json",
+      "layer": "semantic",
+      "expectedResult": "valid",
+      "expectedDiagnostic": null,
+      "focus": "ordered comparison accepts a decimal operand with significant trailing zeroes",
+      "specSection": "§2.2"
+    },
+    {
+      "id": "valid-decimal-operand-long-fraction",
+      "path": "valid/decimal-operand-long-fraction.json",
+      "layer": "semantic",
+      "expectedResult": "valid",
+      "expectedDiagnostic": null,
+      "focus": "ordered comparison accepts a high-precision decimal operand whose identity would change if parsed as a float",
+      "specSection": "§2.2"
     }
   ]
 }
