@@ -1,0 +1,206 @@
+**Peer review of RFC 0016**
+
+Reviewer: OpenAI Codex, GPT-6, 2026-09-28. Drafting model attributed by the commit: Anthropic Claude Fable 5.1.
+
+Verified HEAD `318b8921a9f752769d78e240e8e325f17bf767eb`, exactly one commit above `origin/main`, and the supplied SHA-256. The diff contains only the RFC, its index row, and its site entry. This review treats it as an unimplemented Draft proposal.
+
+I found **five MAJOR and eight MINOR issues; no BLOCKER**. All quotations below refer to [RFC 0016]([REDACTED: personal data (a local file path; its first segments name a local user account)]/rfcs/0016-outcome-values.md).
+
+1. **F1 — MAJOR: The proposed schema changes omit the required-extension list.**
+
+   Lines 171–172:
+   > The schema's `extensions` object refuses every member name beginning `org.judgmentpack.`. It would admit this one name.
+
+   The first sentence is correct. However, the schema independently applies the reserved-prefix prohibition to `$defs.metadata.properties.requiredExtensions.items.pattern` at lines 413–418. RFC 0016 requires that list entry. Amending only `$defs.extensions` therefore leaves every proposed pack structurally invalid.
+
+   **Smallest edit:** Explicitly list both schema predicates as requiring an exception for this exact name, preserving the prohibition for other reserved names. An in-memory schema check reproduced the remaining rejection after changing only `extensions`.
+
+2. **F2 — MAJOR: The implementation section drops the cited source’s independence caveat.**
+
+   Lines 315–316:
+   > Two independent implementations are plausible: the Go reference runtime and the clean-room Python evaluator, the two whose agreement [RFC 0006](0006-evaluator-conformance.md) reports.
+
+   RFC 0006, lines 33–44 and 237–243, expressly says their common maintainer direction prevents their agreement from independently confirming the semantics. GOVERNANCE.md, lines 171–174, likewise says they are not independent evidence. Separate languages and a clean-room barrier do not establish the independence claimed here.
+
+   **Smallest edit:** Call these two plausible implementation paths, retain the shared-direction caveat, and name an independently directed implementation as still needed for the stable-feature evidence bar. No implementation needs to exist merely to open this Draft.
+
+3. **F3 — MAJOR: The pass-through example misstates what current Core produces.**
+
+   Lines 206–207:
+   > With `/proposed/refundAmount` absent, or given as the JSON number `149.5`, Core today produces `approve-refund`.
+
+   Lines 198–200 explicitly give this pack the proposed reserved-name declaration. The current schema rejects it. Under Core §§8.2 and 8.4, an evaluator returns `pack-not-conformant`, without a disposition, before inspecting that fact. The Compatibility section correctly acknowledges this elsewhere.
+
+   **Smallest edit:** Say that the *otherwise equivalent current-Core pack, with the proposed declaration and required-extension entry removed*, produces `approve-refund`. With good standing true and no other blockers, that comparison is correct.
+
+4. **F4 — MINOR: The full reason vocabulary does not match the trigger vocabulary.**
+
+   Lines 327–328:
+   > The reason vocabulary is closed and matches `escalation.triggers` (§6.7).
+
+   Core §8.3 includes `exception-escalation`; §6.7 does not admit it as a trigger. Core §8 distinguishes the five generated reasons from this additional direct-request reason.
+
+   **Smallest edit:** Say that the five generated reasons match `escalation.triggers`, with `exception-escalation` additionally admitted for direct requests. `unknown` already belongs to both relevant vocabularies.
+
+5. **F5 — MAJOR: Unrestricted JSON strings leave a canonicalization hole.**
+
+   Lines 97–99:
+   > A `constant` of type `string` is a JSON string; of type `decimal`, a JSON string satisfying the decimal grammar of §2.2; of type `boolean`, a JSON Boolean.
+
+   Lines 150–151:
+   > The byte-identity requirement of §8.3 extends to `value`.
+
+   The same unrestricted string admission appears for `fromFact` at lines 127–131. An escaped lone surrogate such as `"\ud800"` fits RFC 8259’s grammar and passes Python’s JSON parsing and JSON Schema string check. RFC 8785 §3.2.2.2 requires an error for lone surrogates. Existing Core dispositions carry restricted identifiers; copying arbitrary strings introduces this new boundary.
+
+   The proposal currently requires such a value to resolve and be copied, while requiring canonicalization that cannot serialize it. Implementations could reject, replace, or preserve it incompatibly.
+
+   **Smallest edit:** Define `string` values as Unicode scalar-value sequences, excluding unpaired surrogates. Reject invalid constants as `pack-not-conformant` during preflight; make invalid selected fact strings fail resolution with `unknown`. Preserve valid strings without normalization or replacement. Add cases for both source forms and a valid surrogate pair.
+
+6. **F6 — MINOR: The example packs have more outcomes than the Evidence section reports.**
+
+   Lines 57–58:
+   > Their dispositions name `approve` or `manual-review` and nothing else.
+
+   The expense pack also reaches `reject`. The supplier pack also reaches `reject` and `escalate`. Both can produce non-outcome dispositions, and Core dispositions always contain `kind`, `reasons`, and `handoff`.
+
+   **Smallest edit:** Say their outcome results name category identifiers, including `approve` and `manual-review`, without carrying the compared quantity. The underlying quantity-comparison evidence remains valid.
+
+7. **F7 — MINOR: The precise Study 004 gloss is not established by the cited source.**
+
+   Lines 66–68:
+   > An edge in that grammar writes the upstream outcome's identifier into the downstream decision's facts, and the phrase is about mapping that identifier to some other value there.
+
+   RFC 0002, lines 295–302, records “outcome-value mapping” among four implicated constructs. Lines 69–71 describe outcome feeds into downstream facts or evidence availability. It does not define the phrase as the specific identifier-to-other-value transformation asserted here.
+
+   This is an attribution limitation, not a finding that the external study says the opposite. The cited checkout source supports the composition distinction but does not substantiate the complete gloss.
+
+   **Smallest edit:** Retain the recorded construct name and composition scope; remove the detailed interpretation or explicitly label it as an interpretation.
+
+8. **F8 — MINOR: The disposition member count contradicts the conditional presence rules.**
+
+   Lines 173–174:
+   > §8.3 says the disposition has four members "and no others". For a pack that requires this extension it would have five.
+
+   Core permits four member names, but `outcomeId` is conditional: non-outcomes have three members. Under this proposal, a pack requiring the extension can still select an undecorated outcome, or produce `unresolved`; neither receives `value`.
+
+   **Smallest edit:** Say Core permits four member names and the proposal permits a fifth, present only under the condition in the disposition table.
+
+9. **F9 — MINOR: The no-change alternative overstates the missing-quantity problem.**
+
+   Lines 222–223:
+   > The quantity stays outside the portable result, and nothing refuses an approval whose quantity is missing.
+
+   Core §7.4 makes an absent quantity comparison `unknown`; §8 step 7 allows `onUnknown: escalate` to block both candidate outcomes and fallback. The cited expense pack already uses quantity-reading rules with that policy.
+
+   The actual gap is an automatic requirement attached to the selected outcome, including forced and fallback paths.
+
+   **Smallest edit:** Acknowledge that existing rules can block missing quantities, while explaining that Core supplies no automatic outcome-value guard.
+
+10. **F10 — MAJOR: Occurrences of the reserved key outside outcomes have no specified treatment.**
+
+    Lines 82–83:
+    > An outcome declares its values under the extension name `org.judgmentpack.outcome-values`, in the outcome's `extensions` object.
+
+    This specifies the intended location but does not prohibit other locations. The shared schema definition admits extensions on the root, decision, rules, metadata, and other objects. Core §9 requires only that a required-extension name occur somewhere.
+
+    After admitting the name in both schema predicates, a root-only occurrence plus a `requiredExtensions` entry passes those structural and occurrence checks. The RFC does not determine whether a supporting consumer rejects it or accepts it with no outcome values.
+
+    **Smallest edit:** Require every occurrence of this name to be inside an outcome’s `extensions` object, and classify misplaced occurrences as `pack-not-conformant` during supporting-consumer preflight. Add root-only and mixed-placement cases.
+
+11. **F11 — MINOR: Value-name admission depends on regex end-anchor behavior.**
+
+    Lines 88–89:
+    > Each member name is a **value name**, matching `^[a-z][A-Za-z0-9]*$`.
+
+    No regex dialect or whole-string matching rule is specified. Python `re.search`, including its use by `jsonschema`, accepts the decoded name `"amount\n"` under this pattern because `$` can match before a final newline. A strict-end implementation rejects it.
+
+    **Smallest edit:** State that the entire decoded name consists of one lowercase ASCII letter followed only by zero or more ASCII letters or digits. Add a trailing-newline rejection case.
+
+12. **F12 — MINOR: The conformance cases omit important interactions of the new step.**
+
+    Lines 301–302:
+    > *Negative.* A `fromFact` whose pointer does not resolve; a `not-applicable` result and an `unresolved` result, each carrying no `value`.
+
+    This is a useful seed, but it does not exercise the main integration boundaries. The proposed cases should also cover:
+
+    - Failure after forced-outcome and fallback selection.
+    - Multiple values with one failing, proving that no partial `value` survives.
+    - `unknown` with matching triggers, nonmatching triggers, and no escalation object.
+    - A malformed declaration on an unselected outcome, rejected before applicability.
+    - Competing preflight failures, fixing the expected §8.4 class.
+    - Canonical output under declaration-member permutations, plus the Unicode, placement, and naming cases above.
+
+    **Smallest edit:** Add these cases with explicit expected dispositions or error classes. Clarify that the whitespace case concerns `decimal`; whitespace is valid in `string`. The unselected-outcome case must concern a valid declaration whose fact is unavailable, not malformed declaration content.
+
+13. **F13 — MINOR: The Summary understates the new decision effect.**
+
+    Lines 18–19:
+    > The proposal adds what a result *states*; it adds nothing to what a pack can *decide*.
+
+    Value resolution adds an outcome-blocking presence/type requirement, including after forced selection. Lines 259–262 correctly identify that changed result as the proposal’s purpose. The quoted absolute claim obscures it.
+
+    **Smallest edit:** Say the proposal adds no computation or condition operators, while explicitly acknowledging that failure to supply a declared value blocks the selected outcome.
+
+**What I examined and found sound**
+
+All ten sections required by RFC 0000 are present:
+
+| Section | Assessment |
+|---|---|
+| Summary | Clearly proposes values; qualify the semantic-scope claim in F13. |
+| Problem | Identifies authors, consumers, and record readers; examples illustrate the proposed use. |
+| Evidence | Candid about synthetic examples and absent experience; correct F6 and qualify F7. |
+| Specification | Main resolution contract is coherent; fix carrier and string-admission gaps. |
+| Alternatives | Includes no change, extension, profile, and product-only behavior; correct F9. |
+| Compatibility | Covers readers, writers, semantics, records, and migration. |
+| Security and privacy | Addresses disclosure, caller control, authorization confusion, origin, and resources. |
+| Conformance | Includes all four required categories; expand their interactions as F12 describes. |
+| Implementation | Names plausible implementation paths; correct the independence claim. |
+| Unresolved questions | Exposes carrier choice, constants, reasons, identity, units, lineage, composition, and bounds. |
+
+The Evidence section does **not** establish demonstrated external demand or independent implementation experience. It largely says so honestly. RFC 0000’s stable-feature evidence bar remains unmet; that does not prevent opening a Draft, and this review does not ask it to manufacture evidence.
+
+I walked all ten Core §8 steps:
+
+- Step 1 terminates with `not-applicable` or `unresolved` when applicable.
+- Steps 2–4 collect evidence and exception state; step 5 can terminate unresolved.
+- Step 6 is the compatible forced-outcome exit.
+- Step 7 collects rule candidates; step 8 can terminate unresolved.
+- Step 9 selects one distinct rule outcome.
+- Step 10 selects fallback or produces unresolved/no-match.
+
+Thus **steps 6, 9, and 10 cover every outcome exit**. The proposed guard excludes every non-outcome result. No outcome path is missed.
+
+The single `unknown` reason after failed value resolution is coherent. Reaching an outcome means no retained blocking reasons remain; ignored unknowns are diagnostic state, not retained reasons. Consequently, replacing the preliminary outcome does not discard an existing reason set.
+
+Handoff is fully determined by §§8.1 and 8.3: failure requests handoff with `triggeredBy:["unknown"]` exactly when the configured triggers contain `unknown`; otherwise its state is `none`. Direct exception escalation cannot coexist with the preliminary outcome, and failed value resolution cannot retry fallback. Apart from the admission gaps identified above, two implementations have no discretion here.
+
+The `value` presence condition is decidable from admitted inputs. Core selects an outcome, the declaration is read from that outcome, and source resolution determines the final kind. Failed resolution omits both `outcomeId` and `value`; selecting an undecorated outcome omits `value`. No external lookup or circular definition is required.
+
+The disposition retains the no-number property. Decimal values remain strings, Booleans remain Booleans, and value names occupy a nested object rather than colliding with top-level members. RFC 8785 supplies canonical member ordering; the illustrated disposition has that order. F5 concerns string admissibility, not numeric canonicalization.
+
+Decimal and Boolean typing is otherwise complete for both source forms. No coercion is allowed; lexical scale is preserved; a quoted Boolean is not a Boolean. The empty string and `false` are valid values. Empty-root pointers and invalid runtime array traversal inherit §7.4’s rules. Large decimal strings need no numeric conversion merely to be copied.
+
+For supporting consumers, malformed declarations are correctly classified as semantic nonconformance, hence `pack-not-conformant` under §8.4. They must be checked during preflight, including declarations on outcomes never selected. Existing precedence remains:
+
+`pack-not-conformant` → `malformed-input` → `unsupported-required-extension` → `resource-exhaustion`.
+
+That is distinct from a valid declaration whose runtime fact cannot resolve.
+
+The full proposed behavior **cannot be an optional extension under current §9**: it changes both resolution and the disposition. A weaker optional annotation could carry descriptive data, but could not require these semantics. The Core-amendment alternative correctly notes that every evaluator would acquire the new obligation. Profile negotiation is indeed open in §13; calling a profile “heavier” is a design judgment, not measured implementation cost.
+
+Source verification also established:
+
+- Exactly two of the five example packs have ordered quantity comparisons. The stated paths and thresholds—`/expense/amount` against `"5000"` and `/invoice/variancePercent` against `"2.5"`—are correct.
+- The direct quotations from Core §§2.2, 6.4, 8.3, and 9 are verbatim after ordinary line wrapping. F8 concerns interpretation around a quotation, not altered quotation text.
+- RFC 0007 supports the no-arithmetic boundary and the computation-profile/non-goal discussion. Its measurements concern determination escape, not demand for result quantities.
+- `docs/non-goals.md` excludes a general-purpose rules language.
+- RFC 0014 places lineage and citation machinery outside Core; it does not supply verification of these proposed values’ origins.
+- Core §13 leaves the cited units, normalization, and negotiation questions open.
+- The index row and site entry consistently identify RFC 0016 as a Draft proposal. No normative or implementation change is included.
+
+I read the requested sources, checked the changed index/site entries, and inspected all five example packs for the count. No web search was used. All **77 repository tests passed** with `PYTHONDONTWRITEBYTECODE=1`; `git diff --check` passed. Small Python checks confirmed the schema counterexamples and parsed the JSON examples, wrapping the tiers fragment appropriately. These tests establish repository integrity, not implementation of the proposed semantics.
+
+The checkout remains unchanged. The incremental record is preserved in [review-partial.md]([REDACTED: personal data (a local file path; its first segments name a local user account)]/review-partial.md).
+
+**Verdict: `mergeable after fixes`, as a Draft.** Fix both reserved-name admission sites, specify extension placement and Unicode admission, correct the independence and current-Core claims, and make the wording and conformance-case corrections identified in F4 and F6–F13. Neither implementation nor stable-feature evidence is required for this Draft-only merge.
