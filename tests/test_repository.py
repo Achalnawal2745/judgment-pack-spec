@@ -81,6 +81,15 @@ def pointer(parts: Iterable[Any]) -> str:
     return "" if not encoded else "/" + "/".join(encoded)
 
 
+def pointer_depth(ptr: str) -> int:
+    return 0 if not ptr else ptr.count("/")
+
+
+def pointer_contains(ancestor: str, descendant: str) -> bool:
+    """Whether `descendant` lies at or under `ancestor` on JSON Pointer segment boundaries."""
+    return descendant == ancestor or ancestor == "" or descendant.startswith(ancestor + "/")
+
+
 def walk_schema_errors(error: Any) -> Iterable[Any]:
     yield error
     for child in error.context:
@@ -501,6 +510,23 @@ class RepositoryConformanceTests(unittest.TestCase):
             with self.subTest(parts=parts):
                 self.assertEqual(pointer(parts), expected)
 
+    def test_pointer_containment(self) -> None:
+        cases = [
+            ("", "", True),
+            ("", "/rules", True),
+            ("", "/rules/0/when", True),
+            ("/rules/0/when", "/rules/0/when", True),
+            ("/rules/0/when", "/rules/0/when/value", True),
+            ("/rules/0/when", "/rules/0/whenever", False),
+            ("/rules/0/when", "/rules/0", False),
+            ("/rules/0/when", "", False),
+            ("/rules/0", "/rules/00", False),
+        ]
+
+        for ancestor, descendant, expected in cases:
+            with self.subTest(ancestor=ancestor, descendant=descendant):
+                self.assertEqual(pointer_contains(ancestor, descendant), expected)
+
     def test_strict_json_loads_duplicate_member_detection(self) -> None:
         cases = [
             (
@@ -620,6 +646,39 @@ class RepositoryConformanceTests(unittest.TestCase):
                         f"expected {expected}; got "
                         + repr([(item.code, item.path) for item in diagnostics]),
                     )
+
+                    enclosing_oneofs = [
+                        d.path
+                        for d in diagnostics
+                        if d.code == "JPS-STRUCTURE-ONEOF"
+                        and pointer_contains(d.path, expected["path"])
+                    ]
+                    all_diagnostics = [(d.code, d.path) for d in diagnostics]
+                    if enclosing_oneofs:
+                        outermost = min(enclosing_oneofs, key=pointer_depth)
+                        strays = [
+                            (d.code, d.path)
+                            for d in diagnostics
+                            if not pointer_contains(outermost, d.path)
+                        ]
+                        self.assertEqual(
+                            [],
+                            strays,
+                            f"case {case['id']!r} used enclosing oneOf node {outermost!r}, "
+                            f"but carried stray diagnostics outside it: {strays}; "
+                            f"all diagnostics: {all_diagnostics}",
+                        )
+                    else:
+                        expected_diagnostic = (expected["code"], expected["path"])
+                        if len(diagnostics) != 1 or all_diagnostics != [expected_diagnostic]:
+                            strays = [
+                                item for item in all_diagnostics if item != expected_diagnostic
+                            ] or all_diagnostics[1:]
+                            self.fail(
+                                f"case {case['id']!r} used node {expected['path']!r}: "
+                                f"expected only {expected_diagnostic}, but got stray diagnostic(s): "
+                                f"{strays}; all diagnostics: {all_diagnostics}"
+                            )
 
     def test_examples_are_structurally_and_semantically_valid(self) -> None:
         for example_path in sorted((ROOT / "examples").glob("*.json")):
