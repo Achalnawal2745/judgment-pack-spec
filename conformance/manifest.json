@@ -478,6 +478,18 @@
       "specSection": "§7.4"
     },
     {
+      "id": "structural-empty-in-operand",
+      "path": "structural/empty-in-operand.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-COLLECTION-ARITY",
+        "path": "/rules/0/when/value"
+      },
+      "focus": "membership comparison rejects an empty array operand",
+      "specSection": "§7.4"
+    },
+    {
       "id": "structural-non-object-root",
       "path": "structural/non-object-root.json",
       "layer": "structural",
@@ -807,6 +819,15 @@
       "expectedDiagnostic": null,
       "focus": "ordered comparison accepts a high-precision decimal operand whose identity would change if parsed as a float",
       "specSection": "§2.2"
+    },
+    {
+      "id": "valid-in-operand-one-item",
+      "path": "valid/in-operand-one-item.json",
+      "layer": "semantic",
+      "expectedResult": "valid",
+      "expectedDiagnostic": null,
+      "focus": "membership comparison accepts a one-item array operand",
+      "specSection": "§7.4"
     }
   ]
 }
