@@ -5,8 +5,8 @@
 - Created: 2026-09-28
 
 > This is an open proposal, not part of the specification. See
-> [RFC 0000](0000-rfc-process.md) for the process and evidence bar. Nothing here is implemented, and
-> no conformance class depends on any of it.
+> [RFC 0000](0000-rfc-process.md) for the process and evidence bar. Two prototypes implement it,
+> each behind an opt-in, and no conformance class depends on any of it.
 
 ## Summary
 
@@ -69,7 +69,10 @@ The evidence is thin, and this section says how thin.
   implicated in its edge grammar's open items. That construct belongs to composition, where one
   decision's outcome feeds another's inputs. This RFC does not address it (see *Unresolved
   questions*).
-- **There is no implementation experience.** No evaluator implements any part of this.
+- **Two prototypes have run rows written from this document.** *Implementation* says what exists
+  and what building it found. That is experience of whether the text can be built. It is not
+  evidence of need: every pack that was run was written for the test, and no use by an author is
+  evidenced here.
 
 The examples in this document were written for it.
 
@@ -91,6 +94,10 @@ schema admits an `extensions` object on the root, the decision, a rule and other
 asks only that a required name appear in some one of them. For this extension every such place
 but an outcome is an error. Its entry in `metadata.requiredExtensions` is a separate matter, and
 is required.
+
+An `extensions` object, here, is one the schema defines as a member of those objects. A member
+named `extensions` inside the value of another extension, or inside the operand of a condition, is
+data. It declares no value, and it is no value for an entry of `metadata.requiredExtensions`.
 
 The extension's value on an outcome is a non-empty JSON object, the **value declaration**. Each
 member name is a **value name**: one lowercase ASCII letter followed by zero or more ASCII letters
@@ -117,6 +124,12 @@ extension. That covers a malformed declaration, the name as a member of any `ext
 other than an outcome's, and a declaration in a pack that does not list the name as required. For an implementation claiming evaluator conformance this is the
 `pack-not-conformant` error of §8.4. It is found in the preflight of §8.2, before step 1 of §8
 runs, and so whether or not the outcome that carries the fault would have been produced.
+
+A pack that lists the name as required while no outcome carries a declaration is in error too,
+by one of two rules. Where the name is a member of some other `extensions` object, it is the rule
+of place above. Where it is a member of none, it is §9's rule that a required name has a value.
+The name is listed in `metadata.requiredExtensions` once, as the schema requires of every item of
+that list.
 
 ```json
 {
@@ -151,6 +164,18 @@ For the produced outcome, each value source resolves as follows.
 A value is copied exactly as it was found. Nothing is coerced, trimmed or normalized: `"0.10"`
 stays `"0.10"`, and a JSON number is never turned into a decimal string.
 
+Resolution selects from a facts document that the preflight of §8.2 has admitted. The rule
+above, that a string holding an unpaired surrogate does not resolve, is a rule about a document
+that was admitted. Whether a conforming evaluator admits such a document is a question this
+proposal met and does not answer. The two prototypes differ on it: one admits the document, and
+the other refuses it as `malformed-input`. RFC 8259's grammar admits the text, and RFC 8259 lets
+a parser limit what a string may hold. Core takes its carrier from RFC 8259 (§2.1), says that two
+conforming implementations agree on which inputs are admitted (§8.2), and names one seam in the
+byte-identity requirement, which is not this one (§8.3). So this proposal does not say that
+refusing the document is conforming, or that admitting it is, and it does not take the
+difference for an exception Core allows. It is the ninth of the *Unresolved questions* and an
+item under *What this needs from Core*.
+
 If every value source resolves, the result is the outcome with its resolved values. If any does
 not, the result is `unresolved` with the single reason `unknown`. No outcome is produced and the
 disposition carries no `value` member, whether or not the other values resolved. The result is
@@ -170,7 +195,9 @@ The disposition gains one member.
 
 Every member of `value` is a JSON string or a JSON Boolean. The object holds no number, no `null`,
 no array and no nested object, so the number rules of RFC 8785 still never engage (§8.3). The
-byte-identity requirement of §8.3 extends to `value`.
+byte-identity requirement of §8.3 extends to `value`. The ninth of the *Unresolved questions*
+is no exception to it: this proposal claims none, and one could come only from a decision of
+Core's that is reconciled with §§8.2–8.4 and §10.
 
 ```json
 {"handoff":{"state":"none"},"kind":"outcome","outcomeId":"approve-refund","reasons":[],"value":{"currency":"CAD","refundAmount":"149.50"}}
@@ -198,6 +225,22 @@ byte-identity requirement of §8.3 extends to `value`.
 - §9 reserves names beginning `org.judgmentpack.` for "future specification-defined extensions"
   and defines none. This would be the first, and §9 would say where such an extension's semantics
   are found.
+- Core would say whether a facts document that holds a string with an unpaired surrogate is
+  admitted. Whether the text is a carrier-conforming one and whether a facts document may hold
+  it are two matters: §8.2 already holds the evidence-availability document to more than the
+  carrier does. Approaches Core could take include these, and this proposal takes none of them:
+  - every conforming evaluator refuses such a facts document. For a conforming pack the answer
+    is then `malformed-input`;
+  - every conforming evaluator admits it. This proposal's row for such a fact is then
+    `unresolved`, where the string is selected for a declared value and nothing else stops the
+    evaluation;
+  - Core names what every evaluator admits and lets an implementation refuse the rest under a
+    documented restriction. Core would then have to say which inputs are outside the portable
+    claim. §10 puts outside it an input above an implementation's limit, and a restriction on
+    what a string holds is not a limit of that kind until Core says it is.
+
+  This is a Core question beyond outcome values: it can change the answer for an otherwise
+  conforming pack whose evaluation reaches facts preflight.
 
 ## Examples
 
@@ -343,7 +386,9 @@ Evaluation rows:
 - *Adversarial.* Where `decimal` is declared: a fact given as a JSON number, as `null`, as an
   object, and as a string with surrounding whitespace, none of which resolves. Where `string` is
   declared: a fact string with surrounding whitespace, which resolves and is copied unchanged,
-  and one holding an unpaired surrogate, which does not resolve. A pointer that traverses an array
+  and one holding an unpaired surrogate, which does not resolve. That last row is a row of an
+  evaluator that admits the facts document, and whether a conforming one does is open (see
+  *Resolution*). A pointer that traverses an array
   out of range. A produced outcome whose own values resolve while another outcome declares a
   `fromFact` the facts cannot supply: the result is the produced outcome, because only it is
   inspected.
@@ -354,12 +399,16 @@ Error rows:
   applicability is false: `pack-not-conformant`, and not the `not-applicable` disposition.
 - A malformed declaration together with an evidence-availability document carrying an undeclared
   member name: `pack-not-conformant`, the first class in §8.4's order.
-- For an implementation that does not support the extension, a well-formed pack that requires it:
+- For an implementation that does not support the extension and whose schema admits the name, a
+  well-formed pack that requires it:
   `unsupported-required-extension`. The same pack gets the same class where its declaration
   breaks only this extension's own rules, such as an empty declaration or an unknown `type`: an
   implementation that does not support the extension is not required to check them. A fault
   Core itself defines is another matter. A duplicate member name inside the declaration makes
   the pack `pack-not-conformant` for every implementation, and that class comes first (§8.4).
+  Under the schema of `0.2.0-draft`, which refuses the name, every row of this bullet is
+  `pack-not-conformant`, as *Compatibility* says. The first three cannot be run as written until
+  a schema admits the name.
 
 ## Implementation
 
@@ -370,20 +419,102 @@ independent evidence. RFC 0006 records that both trace to one maintainer's direc
 independent. RFC 0000's bar for a stable feature still needs an implementation directed
 independently of this project.
 
-Neither implements this proposal. Each would need to check the declaration in preflight, run the
-resolution step after an outcome is produced, and add the member to the disposition it serializes.
+**Both now implement it as a prototype** (2026-09-28), each behind an opt-in that is off by
+default: the Go runtime under its
+[ADR-0039](https://github.com/Judgment-Pack/judgment-pack-runtime/blob/main/docs/adr/0039-draft-rfc-outcome-values-prototype.md),
+and the Python evaluator with its readings in entries 27 to 33 of its
+[decision log](https://github.com/Judgment-Pack/judgment-pack-evaluator-experiments/blob/main/python/DECISIONS.md).
+Both built the extension form. Neither claims anything by it.
+
+How the Python prototype was written is the maintainer's account, and the record of it is the
+message of the commit that brought it into the experiments repository
+([`5cbcf5f`](https://github.com/Judgment-Pack/judgment-pack-evaluator-experiments/commit/5cbcf5f5f0fc58b3f52327a4d0c7c9ced5ccc585)):
+under that repository's
+[clean-room protocol](https://github.com/Judgment-Pack/judgment-pack-evaluator-experiments/blob/main/CLEAN-ROOM-PROTOCOL.md),
+by a model of a different vendor than the one that drafted the Go prototype, in a room that held
+the reference texts and the Python evaluator and not the Go one. By the same account, the model
+that drafted the Go prototype wrote the rows and the driver.
+
+Sixty rows were written from this document as it stood before this revision (specification
+commit `7c7abbb`), each with a pack of its own and the answer that text gives, and run through
+both. There is a row for every case listed under *Conformance*, reading "a constant of each
+type" as one row to a type, and for five cases of *Examples*. A disposition was compared byte
+for byte as each implementation wrote it, and an error by its class.
+
+| Against the answer each row carries | Rows |
+| --- | ---: |
+| Both implementations give it | 56 |
+| Both agree with each other and do not give it | 3 |
+| The two differ | 1 |
+
+Of the 39 rows whose answer is a disposition, 38 are the same bytes in both and the bytes the row
+carries, the example under *The disposition* among them. The record, the rows and the driver are
+in the experiments repository:
+[`harness/RFC0016-AGREEMENT.md`](https://github.com/Judgment-Pack/judgment-pack-evaluator-experiments/blob/main/harness/RFC0016-AGREEMENT.md).
+
+What the rows do not run:
+
+- Four cases of *Examples*: the tiers where the rules produce `limit-high`; the pass-through
+  pack without its declaration, with the amount absent and with the amount a number, which Core
+  evaluates to `approve-refund`; and the calculated quantity, for which this document gives no
+  complete pack.
+- A consumer whose schema admits the name and which does not support the extension. No such
+  schema is published, so no such consumer was run.
+- An input at either prototype's limits, and a pack that uses this draft together with RFC 0008.
+- What this revision adds to *Declaration*: a member named `extensions` inside another
+  extension's value, the name required and carried nowhere, and the name listed twice. The
+  Python decision log records a test of the first, in entry 29. The Go decision record records
+  checks for the other two, in its third finding.
+
+What building it found, and where this revision answers it:
+
+- **The one difference is about admission.** A fact string that holds an unpaired surrogate:
+  the Python evaluator admits the facts document and the value does not resolve, which is the
+  answer the row carries; the Go runtime refuses the document as `malformed-input`. Neither was
+  changed to match the other. *Resolution*, the row under *Conformance* and *What this needs from
+  Core* now say that the question is open.
+- **The three rows both answer otherwise** are those of a consumer that does not support the
+  extension. The rows carry `unsupported-required-extension`, which is the answer of a consumer
+  whose schema admits the name. Both prototypes hold a pack to the schema of `0.2.0-draft`,
+  which refuses the name, and answer `pack-not-conformant`. That agrees with *Compatibility*, and
+  with the rows under *Conformance* as this revision words them.
+- **Both read "an `extensions` object" as one the schema defines**, and not as any member of that
+  name. *Declaration* now says so.
+- **The two admit the name differently.** The Go runtime sets the name aside and has the published
+  validator judge the rest. The Python evaluator admits the name in its two places and runs its
+  other checks as they were. An implementation that sets the name aside has to check two things
+  itself that the validator would have found in what was set aside: that a required name has a
+  value, and that it is listed once. *Declaration* now states both.
+- **The examples are fragments.** The Python implementer completed them into packs and recorded
+  how, in entry 32. The rows carry complete packs.
+- **The two bound the work differently**, and one of them admits the prototype together with the
+  prototype of [RFC 0008](0008-bounded-collection-quantifiers.md) where the other refuses the pair.
+  Both are under *Unresolved questions*. Neither was run.
+
+None of this is conformance evidence, and RFC 0000's bar for a stable feature is as far off as it
+was. The two prototypes trace to one maintainer's direction. The rows are not independent of the
+Go prototype, for the reason above. The agreement record reports two runs of the comparison with
+the same answer on every row: one against the Go prototype's branch before it was merged, and
+one against the runtime's main branch at `f98d4c9` after. When this was written the comparison
+was not part of the experiments repository's continuous checks.
 
 ## Unresolved questions
 
 1. **Extension or Core.** The extension form keeps §§7–8 as they are for implementations that do
    not need values. It also makes this the first specification-defined extension, which needs §9
    and the schema to say how one is admitted. The Core form avoids that and binds every evaluator.
+   Both prototypes built the extension form, and neither found anything in the semantics that
+   depends on the form. What the extension form cost them is what it costs a reader of the
+   current schema: until a schema admits the name, no consumer can answer
+   `unsupported-required-extension` for it.
 2. **Should constants be carried?** See *Alternatives*. Carrying them copies pack content into the
    disposition, which §8.3 otherwise avoids.
 3. **Is `unknown` the right reason?** The five generated reasons match `escalation.triggers`
    (§6.7), and `exception-escalation` is admitted beside them for a direct request (§8). Reusing
    `unknown` adds nothing to either. It leaves a consumer unable to tell a quantity that was
    missing from a condition that was unknown, except through diagnostics outside the disposition.
+   One prototype gives such a diagnostic: its trace names each value of the produced outcome and
+   says whether it resolved, and never carries the value.
 4. **Decimal identity.** Values are copied without normalization, so `"5000"` and `"5000.00"` are
    different values. Core defines no scale, unit or decimal-aware equality (§2.2, §13), and this
    proposal adds none.
@@ -394,4 +525,22 @@ resolution step after an outcome is produced, and add the member to the disposit
    here.
 7. **Composition.** Whether a value may feed another decision's facts is RFC 0002's question.
 8. **Bounds.** Whether the extension should fix a maximum number of values or a maximum string
-   size, or leave both to each implementation's documented limits as §10 does.
+   size, or leave both to each implementation's documented limits as §10 does. The two prototypes
+   left it to their limits and chose differently: one counts declared values against a limit on
+   authored items and the other has no such count, and they charge the work of resolution by
+   different terms. An input near either limit is not portable between them.
+9. **Is a facts document that holds an unpaired surrogate admitted?** RFC 8259's grammar admits
+   the text and lets a parser limit what a string may hold. RFC 8785 cannot serialize such a
+   string, which matters to Core only where the string would reach a disposition. One prototype
+   refuses the text in any input, and the other admits it and refuses the value where it is
+   selected. This is a Core question beyond outcome values: it can change the answer for an
+   otherwise conforming pack whose evaluation reaches facts preflight. *What this needs from
+   Core* names approaches Core could take. Until Core takes one, this proposal's row for such a
+   fact is a row of an evaluator that admits the document, and nothing here makes the
+   difference between the two prototypes a conforming one.
+10. **Together with RFC 0008.** Two things are undecided: whether one evaluation may run under
+    both drafts, and how the work of resolving values is charged under the one running budget
+    [RFC 0008](0008-bounded-collection-quantifiers.md) requires of an evaluation. What a value's
+    pointer selects is not in doubt: RFC 0008 restores the condition root after each `where`, and
+    values are resolved against the facts document after an outcome is chosen. One prototype
+    refuses the pair and the other admits it. Whichever is accepted second should decide both.
