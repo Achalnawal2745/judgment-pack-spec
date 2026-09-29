@@ -106,6 +106,18 @@
       "specSection": "§6.3"
     },
     {
+      "id": "structural-non-array-sources",
+      "path": "structural/non-array-sources.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-TYPE",
+        "path": "/sources"
+      },
+      "focus": "sources collection must be an array of source objects",
+      "specSection": "§4"
+    },
+    {
       "id": "structural-empty-escalation-target-name",
       "path": "structural/empty-escalation-target-name.json",
       "layer": "structural",
@@ -367,6 +379,18 @@
         "path": "/escalation/triggers"
       },
       "focus": "configured handoff intent has at least one trigger",
+      "specSection": "§6.7"
+    },
+    {
+      "id": "structural-non-array-escalation-triggers",
+      "path": "structural/non-array-escalation-triggers.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-TYPE",
+        "path": "/escalation/triggers"
+      },
+      "focus": "escalation triggers must be an array of trigger names",
       "specSection": "§6.7"
     },
     {

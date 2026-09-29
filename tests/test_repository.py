@@ -140,7 +140,11 @@ def schema_diagnostic(error: Any) -> Diagnostic:
             code = "JPS-STRUCTURE-ESCALATION-TRIGGERS"
         else:
             code = "JPS-STRUCTURE-COLLECTION-ARITY"
-    elif validator == "type" and error.validator_value == "array":
+    elif (
+        validator == "type"
+        and error.validator_value == "array"
+        and instance_path[-1:] == ["value"]
+    ):
         code = "JPS-STRUCTURE-IN-OPERAND"
     elif validator == "const" and instance_path == ["specVersion"]:
         code = "JPS-STRUCTURE-SPEC-VERSION"
