@@ -40,7 +40,7 @@
       "expectedResult": "invalid",
       "expectedDiagnostic": {
         "code": "JPS-CARRIER-DUPLICATE-MEMBER",
-        "path": "/label"
+        "path": "/outcomes/0/label"
       },
       "focus": "duplicate object member names are rejected below the root, not only at it",
       "specSection": "§2"
@@ -63,7 +63,7 @@
       "layer": "structural",
       "expectedResult": "invalid",
       "expectedDiagnostic": {
-        "code": "JPS-STRUCTURE-MINLENGTH",
+        "code": "JPS-STRUCTURE-MIN-LENGTH",
         "path": "/title"
       },
       "focus": "root title must be a non-empty human-readable string",
@@ -75,7 +75,7 @@
       "layer": "structural",
       "expectedResult": "invalid",
       "expectedDiagnostic": {
-        "code": "JPS-STRUCTURE-MINLENGTH",
+        "code": "JPS-STRUCTURE-MIN-LENGTH",
         "path": "/decision/question"
       },
       "focus": "decision question must be a non-empty human-readable string",
@@ -87,7 +87,7 @@
       "layer": "structural",
       "expectedResult": "invalid",
       "expectedDiagnostic": {
-        "code": "JPS-STRUCTURE-MINLENGTH",
+        "code": "JPS-STRUCTURE-MIN-LENGTH",
         "path": "/outcomes/0/label"
       },
       "focus": "outcome label must be a non-empty human-readable string",
@@ -99,7 +99,7 @@
       "layer": "structural",
       "expectedResult": "invalid",
       "expectedDiagnostic": {
-        "code": "JPS-STRUCTURE-MINLENGTH",
+        "code": "JPS-STRUCTURE-MIN-LENGTH",
         "path": "/sources/0/locator/value"
       },
       "focus": "source locator value must be a non-empty string",
@@ -123,7 +123,7 @@
       "layer": "structural",
       "expectedResult": "invalid",
       "expectedDiagnostic": {
-        "code": "JPS-STRUCTURE-MINLENGTH",
+        "code": "JPS-STRUCTURE-MIN-LENGTH",
         "path": "/escalation/target/name"
       },
       "focus": "escalation target name must be a non-empty string",
@@ -256,7 +256,7 @@
       "expectedResult": "invalid",
       "expectedDiagnostic": {
         "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
-        "path": "/exceptions/0"
+        "path": "/exceptions/0/outcome"
       },
       "focus": "suppress-rule exception forbids an outcome operand",
       "specSection": "§6.6"
@@ -268,7 +268,7 @@
       "expectedResult": "invalid",
       "expectedDiagnostic": {
         "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
-        "path": "/exceptions/0"
+        "path": "/exceptions/0/targetRule"
       },
       "focus": "force-outcome exception forbids a targetRule operand",
       "specSection": "§6.6"
@@ -280,7 +280,7 @@
       "expectedResult": "invalid",
       "expectedDiagnostic": {
         "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
-        "path": "/exceptions/0"
+        "path": "/exceptions/0/targetRule"
       },
       "focus": "escalate exception forbids a targetRule operand",
       "specSection": "§6.6"
@@ -292,7 +292,7 @@
       "expectedResult": "invalid",
       "expectedDiagnostic": {
         "code": "JPS-STRUCTURE-EXCEPTION-SHAPE",
-        "path": "/exceptions/0"
+        "path": "/exceptions/0/outcome"
       },
       "focus": "escalate exception forbids an outcome operand",
       "specSection": "§6.6"

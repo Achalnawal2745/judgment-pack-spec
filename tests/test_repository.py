@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import collections
 import json
+import json.scanner
 import re
 import unittest
 from dataclasses import dataclass
+from json.decoder import WHITESPACE, WHITESPACE_STR, JSONDecodeError, scanstring
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -52,9 +54,10 @@ REASONS = {
 
 
 class DuplicateMemberError(ValueError):
-    def __init__(self, member: str):
+    def __init__(self, member: str, path: str = ""):
         super().__init__(f"duplicate object member: {member}")
         self.member = member
+        self.path = path
 
 
 @dataclass(frozen=True)
@@ -64,21 +67,133 @@ class Diagnostic:
     message: str
 
 
-def strict_json_loads(text: str) -> Any:
-    def object_from_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        value: dict[str, Any] = {}
-        for key, item in pairs:
-            if key in value:
-                raise DuplicateMemberError(key)
-            value[key] = item
-        return value
-
-    return json.loads(text, object_pairs_hook=object_from_pairs)
-
-
 def pointer(parts: Iterable[Any]) -> str:
     encoded = [str(part).replace("~", "~0").replace("/", "~1") for part in parts]
     return "" if not encoded else "/" + "/".join(encoded)
+
+
+def strict_json_loads(text: str) -> Any:
+    path_stack: list[Any] = []
+
+    def custom_parse_object(
+        s_and_end: tuple[str, int],
+        strict: bool,
+        scan_once: Any,
+        object_hook: Any,
+        object_pairs_hook: Any,
+        memo: dict[Any, Any] | None = None,
+        _w: Any = WHITESPACE.match,
+        _ws: str = WHITESPACE_STR,
+    ) -> tuple[dict[str, Any], int]:
+        s, end = s_and_end
+        pairs = []
+        seen = set()
+        if memo is None:
+            memo = {}
+        memo_get = memo.setdefault
+
+        nextchar = s[end : end + 1]
+        if nextchar != '"':
+            if nextchar in _ws:
+                end = _w(s, end).end()
+                nextchar = s[end : end + 1]
+            if nextchar == "}":
+                return {}, end + 1
+            elif nextchar != '"':
+                raise JSONDecodeError("Expecting property name enclosed in double quotes", s, end)
+        end += 1
+        while True:
+            key, end = scanstring(s, end, strict)
+            key = memo_get(key, key)
+            if key in seen:
+                raise DuplicateMemberError(key, pointer(path_stack + [key]))
+            seen.add(key)
+
+            if s[end : end + 1] != ":":
+                end = _w(s, end).end()
+                if s[end : end + 1] != ":":
+                    raise JSONDecodeError("Expecting ':' delimiter", s, end)
+            end += 1
+
+            try:
+                if s[end] in _ws:
+                    end += 1
+                    if s[end] in _ws:
+                        end = _w(s, end + 1).end()
+            except IndexError:
+                pass
+
+            path_stack.append(key)
+            try:
+                value, end = scan_once(s, end)
+            finally:
+                path_stack.pop()
+
+            pairs.append((key, value))
+
+            try:
+                nextchar = s[end]
+                if nextchar in _ws:
+                    end = _w(s, end + 1).end()
+                    nextchar = s[end]
+            except IndexError:
+                nextchar = ""
+            end += 1
+
+            if nextchar == "}":
+                break
+            elif nextchar != ",":
+                raise JSONDecodeError("Expecting ',' delimiter", s, end - 1)
+            end = _w(s, end).end()
+            nextchar = s[end : end + 1]
+            end += 1
+            if nextchar != '"':
+                raise JSONDecodeError("Expecting property name enclosed in double quotes", s, end - 1)
+
+        return dict(pairs), end
+
+    def custom_parse_array(
+        s_and_end: tuple[str, int],
+        scan_once: Any,
+        _w: Any = WHITESPACE.match,
+        _ws: str = WHITESPACE_STR,
+    ) -> tuple[list[Any], int]:
+        s, end = s_and_end
+        values = []
+        nextchar = s[end : end + 1]
+        if nextchar in _ws:
+            end = _w(s, end).end()
+            nextchar = s[end : end + 1]
+        if nextchar == "]":
+            return values, end + 1
+
+        idx = 0
+        while True:
+            path_stack.append(idx)
+            try:
+                value, end = scan_once(s, end)
+            finally:
+                path_stack.pop()
+            values.append(value)
+            idx += 1
+
+            nextchar = s[end : end + 1]
+            if nextchar in _ws:
+                end = _w(s, end).end()
+                nextchar = s[end : end + 1]
+            end += 1
+            if nextchar == "]":
+                break
+            elif nextchar != ",":
+                raise JSONDecodeError("Expecting ',' delimiter", s, end - 1)
+            end = _w(s, end).end()
+        return values, end
+
+    decoder = json.JSONDecoder()
+    decoder.parse_object = custom_parse_object
+    decoder.parse_array = custom_parse_array
+    decoder.scan_once = json.scanner.py_make_scanner(decoder)
+    return decoder.decode(text)
 
 
 def pointer_depth(ptr: str) -> int:
@@ -146,12 +261,34 @@ def schema_diagnostic(error: Any) -> Diagnostic:
         and instance_path[-1:] == ["value"]
     ):
         code = "JPS-STRUCTURE-IN-OPERAND"
+    elif validator == "minLength":
+        code = "JPS-STRUCTURE-MIN-LENGTH"
+    elif validator == "uniqueItems":
+        code = "JPS-STRUCTURE-UNIQUE-ITEMS"
     elif validator == "const" and instance_path == ["specVersion"]:
         code = "JPS-STRUCTURE-SPEC-VERSION"
     elif validator in {"oneOf", "const", "enum"} and "condition" in "/".join(schema_path):
         code = "JPS-STRUCTURE-CONDITION-SHAPE"
     elif validator in {"not", "allOf"} and "exceptions" in schema_path:
         code = "JPS-STRUCTURE-EXCEPTION-SHAPE"
+        if validator == "not" and isinstance(error.instance, dict):
+            val = error.validator_value
+            forbidden: list[str] = []
+            if isinstance(val, dict):
+                if "required" in val and isinstance(val["required"], list):
+                    forbidden.extend(val["required"])
+                elif "anyOf" in val and isinstance(val["anyOf"], list):
+                    for branch in val["anyOf"]:
+                        if (
+                            isinstance(branch, dict)
+                            and "required" in branch
+                            and isinstance(branch["required"], list)
+                        ):
+                            forbidden.extend(branch["required"])
+            for member in forbidden:
+                if member in error.instance:
+                    instance_path.append(member)
+                    break
     else:
         suffix = validator.replace("_", "-").upper()
         code = f"JPS-STRUCTURE-{suffix}"
@@ -369,7 +506,7 @@ def evaluate_case(
         value = strict_json_loads(path.read_text(encoding="utf-8"))
     except DuplicateMemberError as error:
         return "invalid", [
-            Diagnostic("JPS-CARRIER-DUPLICATE-MEMBER", pointer([error.member]), str(error))
+            Diagnostic("JPS-CARRIER-DUPLICATE-MEMBER", error.path, str(error))
         ]
     except (UnicodeError, json.JSONDecodeError) as error:
         return "invalid", [Diagnostic("JPS-CARRIER-INVALID-JSON", "", str(error))]
@@ -538,33 +675,38 @@ class RepositoryConformanceTests(unittest.TestCase):
                 '{"a": 1, "b": 2, "c": {"d": 3}}',
                 {"a": 1, "b": 2, "c": {"d": 3}},
                 None,
+                None,
             ),
             (
                 "duplicate_member_root",
                 '{"a": 1, "b": 2, "a": 3}',
                 None,
                 "a",
+                "/a",
             ),
             (
                 "duplicate_member_nested",
                 '{"a": 1, "b": {"c": 2, "c": 4}}',
                 None,
                 "c",
+                "/b/c",
             ),
             (
                 "same_member_separate_siblings",
                 '{"a": {"x": 1}, "b": {"x": 2}}',
                 {"a": {"x": 1}, "b": {"x": 2}},
                 None,
+                None,
             ),
         ]
 
-        for name, text, expected_result, expected_duplicate_member in cases:
+        for name, text, expected_result, expected_duplicate_member, expected_path in cases:
             with self.subTest(case=name):
                 if expected_duplicate_member is not None:
                     with self.assertRaises(DuplicateMemberError) as ctx:
                         strict_json_loads(text)
                     self.assertEqual(ctx.exception.member, expected_duplicate_member)
+                    self.assertEqual(ctx.exception.path, expected_path)
                 else:
                     self.assertEqual(strict_json_loads(text), expected_result)
 
