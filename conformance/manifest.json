@@ -538,6 +538,102 @@
       "specSection": "§4"
     },
     {
+      "id": "structural-invalid-evidence-requirement-kind",
+      "path": "structural/invalid-evidence-requirement-kind.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/evidenceRequirements/0/kind"
+      },
+      "focus": "evidence requirement kind must be chosen from the closed vocabulary",
+      "specSection": "§6.2"
+    },
+    {
+      "id": "structural-invalid-source-locator-kind",
+      "path": "structural/invalid-source-locator-kind.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/sources/0/locator/kind"
+      },
+      "focus": "source locator kind must be chosen from the closed vocabulary",
+      "specSection": "§6.3"
+    },
+    {
+      "id": "structural-invalid-rule-on-unknown",
+      "path": "structural/invalid-rule-on-unknown.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/rules/0/onUnknown"
+      },
+      "focus": "rule onUnknown must be chosen from the closed vocabulary",
+      "specSection": "§6.5"
+    },
+    {
+      "id": "structural-invalid-exception-effect",
+      "path": "structural/invalid-exception-effect.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/exceptions/0/effect"
+      },
+      "focus": "exception effect must be chosen from the closed vocabulary",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-invalid-exception-on-unknown",
+      "path": "structural/invalid-exception-on-unknown.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/exceptions/0/onUnknown"
+      },
+      "focus": "exception onUnknown must be chosen from the closed vocabulary",
+      "specSection": "§6.6"
+    },
+    {
+      "id": "structural-invalid-escalation-trigger",
+      "path": "structural/invalid-escalation-trigger.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/escalation/triggers/0"
+      },
+      "focus": "escalation triggers must be chosen from the closed vocabulary",
+      "specSection": "§6.7"
+    },
+    {
+      "id": "structural-invalid-escalation-target-kind",
+      "path": "structural/invalid-escalation-target-kind.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/escalation/target/kind"
+      },
+      "focus": "escalation target kind must be chosen from the closed vocabulary",
+      "specSection": "§6.7"
+    },
+    {
+      "id": "structural-invalid-review-disposition",
+      "path": "structural/invalid-review-disposition.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-ENUM",
+        "path": "/metadata/reviews/0/disposition"
+      },
+      "focus": "review disposition must be chosen from the closed vocabulary",
+      "specSection": "§6.8"
+    },
+    {
       "id": "semantic-duplicate-outcome-id",
       "path": "semantic/duplicate-outcome-id.json",
       "layer": "semantic",
