@@ -46,6 +46,15 @@
       "specSection": "§2"
     },
     {
+      "id": "carrier-valid-surrogate-pair",
+      "path": "carrier/valid-surrogate-pair.json",
+      "layer": "carrier",
+      "expectedResult": "valid",
+      "expectedDiagnostic": null,
+      "focus": "valid surrogate pair escape in string value is accepted",
+      "specSection": "§2"
+    },
+    {
       "id": "structural-missing-decision",
       "path": "structural/missing-decision.json",
       "layer": "structural",
