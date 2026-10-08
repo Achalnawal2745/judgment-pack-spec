@@ -430,6 +430,90 @@
       "specSection": "§4"
     },
     {
+      "id": "structural-unknown-evidence-requirement-member",
+      "path": "structural/unknown-evidence-requirement-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/evidenceRequirements/0/format"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-source-member",
+      "path": "structural/unknown-source-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/sources/0/url"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-outcome-member",
+      "path": "structural/unknown-outcome-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/outcomes/0/terminal"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-rule-member",
+      "path": "structural/unknown-rule-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/rules/0/priority"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-exception-member",
+      "path": "structural/unknown-exception-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/exceptions/0/priority"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-escalation-member",
+      "path": "structural/unknown-escalation-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/escalation/slaHours"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
+      "id": "structural-unknown-metadata-member",
+      "path": "structural/unknown-metadata-member.json",
+      "layer": "structural",
+      "expectedResult": "invalid",
+      "expectedDiagnostic": {
+        "code": "JPS-STRUCTURE-UNKNOWN-MEMBER",
+        "path": "/metadata/updatedAt"
+      },
+      "focus": "closed nested Core object",
+      "specSection": "§4"
+    },
+    {
       "id": "structural-empty-escalation-triggers",
       "path": "structural/empty-escalation-triggers.json",
       "layer": "structural",
