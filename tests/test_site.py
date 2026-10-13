@@ -15,8 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # Mirrors UNPUBLISHED_ARTIFACT_DIRECTORIES in web/build.py: rows staged for a later suiteVersion are
 # in no corpus, and the site serves nothing under this directory.
 STAGED_EVALUATION_ROWS = "conformance/evaluation/staged"
-# The checkpoint witness vectors RFC 0017 proposes are in no corpus while it is a draft, and the site
-# serves nothing under this directory either (conformance/witness/README.md).
+# The checkpoint witness vectors are staged since RFC 0017's acceptance, in no corpus until the next
+# specVersion opens, and the site serves nothing under this directory either
+# (conformance/witness/README.md). The companion document they belong to is published.
 WITNESS_VECTORS = "conformance/witness"
 UNPUBLISHED_DIRECTORIES = (STAGED_EVALUATION_ROWS, WITNESS_VECTORS)
 
@@ -209,9 +210,21 @@ class StaticSiteTests(unittest.TestCase):
         self._assert_nothing_published_under(STAGED_EVALUATION_ROWS)
 
     def test_witness_vectors_are_not_published(self) -> None:
-        # RFC 0017 is a draft, and conformance/witness/README.md says the site does not serve the
-        # vectors it proposes; held as the staged rows' exclusion is.
+        # The vectors are staged, and conformance/witness/README.md says the site does not serve
+        # them; held as the staged rows' exclusion is.
         self._assert_nothing_published_under(WITNESS_VECTORS)
+
+    def test_witness_companion_document_is_published(self) -> None:
+        # RFC 0017 is accepted and its text landed: the companion document is a page of its own,
+        # normative for its reader class, and Core §1.1 links to it.
+        document = (self.output / "spec" / "checkpoint-witness" / "index.html").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Normative for the witness-statement reader class", document)
+        for heading in ("1. Terms and the canonical form", "11. The witness-statement reader"):
+            self.assertIn(heading, document)
+        core = (self.output / "spec" / "0.2.0-draft" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('href="../checkpoint-witness/"', core)
 
     def _assert_nothing_published_under(self, directory: str) -> None:
         staged = sorted((ROOT / directory).rglob("*"))
@@ -584,6 +597,7 @@ class StaticSiteTests(unittest.TestCase):
             "project/changelog/index.html": "CHANGELOG.md",
             "project/deployment/index.html": "web/DEPLOYMENT.md",
             "conformance/evaluation/index.html": "conformance/evaluation/README.md",
+            "spec/checkpoint-witness/index.html": "spec/checkpoint-witness.md",
         }
         for output, source in cases.items():
             with self.subTest(output=output):

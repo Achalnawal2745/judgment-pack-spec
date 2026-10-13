@@ -335,6 +335,16 @@ PAGES = (
         "Normative prose",
     ),
     Page(
+        "spec/checkpoint-witness.md",
+        PurePosixPath("spec/checkpoint-witness/index.html"),
+        "The checkpoint witness statement",
+        "A companion document of the specification: the witness statement, its signature, key rule, chain and reading. Normative for the witness-statement reader only.",
+        "spec",
+        "Normative for the witness-statement reader class",
+        # Landed after the 0.2.0-draft tag, so its source is the branch's.
+        source_ref="main",
+    ),
+    Page(
         "docs/field-guide.md",
         PurePosixPath("field-guide/index.html"),
         "Field guide",
@@ -623,9 +633,9 @@ PAGES = (
         "rfcs/0017-checkpoint-witness-statement.md",
         PurePosixPath("rfcs/0017-checkpoint-witness-statement/index.html"),
         "RFC 0017: The checkpoint witness statement",
-        "Draft standards-track proposal to take the reference gateway's checkpoint witness statement into the specification as a companion document - its canonical form, key rule and equation, chain rule, head rule, bounds and findings, restated unchanged - with its 54 vectors imported byte for byte and held in no corpus until acceptance.",
+        "Accepted standards-track RFC: the design record for the checkpoint witness statement, taken up from the reference gateway as a companion document of the specification with a reader conformance class and 54 vectors of its own.",
         "proposals",
-        "Draft proposal",
+        "Accepted standards-track RFC",
         source_ref="main",
     ),
     Page(
@@ -2185,7 +2195,8 @@ def build_license(output_root: Path) -> None:
 # Rows staged for a later suiteVersion are in no corpus (conformance/evaluation/staged/README.md). The
 # site serves the specification and its released corpus, so it serves nothing under this directory;
 # the release bundle leaves it out by the same rule (.gitattributes, export-ignore). The checkpoint
-# witness vectors are in no corpus either while RFC 0017 is a draft (conformance/witness/README.md).
+# witness vectors are staged too, since RFC 0017's acceptance, until the next specVersion opens
+# (conformance/witness/README.md); the companion document they belong to is published.
 UNPUBLISHED_ARTIFACT_DIRECTORIES = (
     PurePosixPath("conformance/evaluation/staged"),
     PurePosixPath("conformance/witness"),
@@ -2320,6 +2331,7 @@ conformance.
 - [Core JSON Schema]({guide_url(PurePosixPath("schema/0.2.0-draft/judgment-pack-core.schema.json"))}): normative structural schema
 - [Document-conformance corpus]({guide_url(PurePosixPath("conformance/index.html"))}): carrier, structural, and semantic cases
 - [Evaluation corpus]({guide_url(PurePosixPath("conformance/evaluation/index.html"))}): normative only for evaluator conformance
+- [The checkpoint witness statement]({guide_url(PurePosixPath("spec/checkpoint-witness/index.html"))}): a companion document, normative only for the witness-statement reader class; its vectors are staged until the next specVersion
 - [Versioning policy]({guide_url(PurePosixPath("project/versioning/index.html"))})
 
 ## Explanations and direct answers
