@@ -1,6 +1,6 @@
 # Conformance corpus
 
-This directory contains 99 focused research-preview cases for testing the carrier, structural, and
+This directory contains 103 focused research-preview cases for testing the carrier, structural, and
 semantic requirements of Judgment Pack Core `0.2.0-draft`. It is versioned with the draft but is not
 yet a complete or normative conformance suite. Evaluator behavior is out of scope *here*: it has its
 own corpus, in [`evaluation/`](evaluation/README.md), which is normative for the evaluator conformance
@@ -15,8 +15,10 @@ holds the 54 vectors of its companion document,
 
 ## Layers
 
-- `carrier/` contains inputs that must be rejected before schema validation. Some files are
-  deliberately malformed JSON, and duplicate-member cases must be parsed with duplicate detection.
+- `carrier/` contains inputs held at the carrier layer, before schema validation: most must be
+  rejected (malformed JSON, trailing data, truncated input; duplicate-member cases must be parsed
+  with duplicate detection), and a few are valid and show what the carrier accepts (trailing
+  whitespace, a valid surrogate pair).
 - `structural/` contains well-formed JSON documents that fail the normative JSON Schema. JPS testing
   asserts the schema's `uri`, `date`, and `date-time` formats even though some general-purpose JSON
   Schema libraries treat `format` as annotation-only by default.
