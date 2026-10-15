@@ -33,6 +33,12 @@ SOURCE = {
     "commit": "05636eda96a9588279d61a6272625be859a28117",
     "path": "vectors/preparation",
     "mergedAs": "82116bfab7705f74ca3e493c9722dd3831c7418f",
+    # The tenth vector, from the Runner's main after its pull request 80 (the amendment of 2026-10-15).
+    "extendedBy": {
+        "pullRequest": 80,
+        "commit": "c84e8e64e5d30c835f8d8e6370cd48e2bfd35ee9",
+        "vectors": ["http-shaped-source"],
+    },
 }
 FINDINGS = {
     "profile-mismatch",
@@ -64,6 +70,23 @@ _SPEC.loader.exec_module(READER)
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def signer(seed: bytes) -> tuple[bytes, Any]:
+    """An Ed25519 key of a test's own (RFC 8032, 5.1.5 and 5.1.6), on the first reader's arithmetic, so that a
+    receipt can be signed again to reach the checks after its signature's. Held to RFC 8032's first test
+    vector in the test that uses it."""
+    h = hashlib.sha512(seed).digest()
+    a = int.from_bytes(h[:32], "little") & ((1 << 254) - 8) | (1 << 254)
+    public = READER._encode(READER._multiply(a, READER.BASE))
+
+    def sign(message: bytes) -> bytes:
+        r = int.from_bytes(hashlib.sha512(h[32:] + message).digest(), "little") % READER.L
+        encoded_r = READER._encode(READER._multiply(r, READER.BASE))
+        k = int.from_bytes(hashlib.sha512(encoded_r + public + message).digest(), "little") % READER.L
+        return encoded_r + ((r + k * a) % READER.L).to_bytes(32, "little")
+
+    return public, sign
 
 
 class Inputs:
@@ -168,10 +191,10 @@ class DialectVectorTests(unittest.TestCase):
             ("conformance/README.md", f"holds the reference Runner's {count} preparation vectors"),
             ("README.md", f"{count} dialect vectors"),
             ("rfcs/README.md", f"the reference Runner's {count} preparation vectors are staged"),
-            (RFC, "The vectors are the Runner's nine, staged"),
-            (COMPANION, "Its nine vectors"),
+            (RFC, "The vectors are the Runner's ten, staged"),
+            (COMPANION, "Its ten vectors"),
         ]
-        self.assertEqual(9, count, "the RFC and the companion spell the count as a word")
+        self.assertEqual(10, count, "the RFC and the companion spell the count as a word")
         for relative, expected in statements:
             with self.subTest(file=relative):
                 text = " ".join((ROOT / relative).read_text(encoding="utf-8").split())
@@ -467,6 +490,241 @@ class DialectVectorTests(unittest.TestCase):
         inputs.dialect = json.dumps(dialect).encode("utf-8")
         self.assertEqual("input-malformed", inputs.verify().answer.get("refused"))
 
+    # The shapes of an `operation` (§4.1, §5.2) and version 3 (§11), from the amendment of 2026-10-15. Written
+    # by its author, who wrote the second reader's extension too.
+
+    def _altered(
+        self,
+        name: str,
+        profile: Any = None,
+        dialect: Any = None,
+        receipt: Any = None,
+        request: Any = None,
+    ) -> Inputs:
+        """The vector's inputs altered: each profile, then the dialect, each source's profileDigest set to its
+        profile's, then each receipt, committed to `request` when one is given and signed again under a key of
+        the test's own."""
+        inputs = self.inputs(name)
+        public, sign = signer(b"the dialect tests' own key")
+        profiles = json.loads(inputs.profiles)
+        for item in profiles:
+            if profile is not None:
+                profile(item)
+            item["publicKey"] = public.hex()
+        digests = {
+            item["id"]: READER.digest_of(READER.canon(READER.read_document(json.dumps(item).encode(), "a profile")))
+            for item in profiles
+        }
+        document = json.loads(inputs.dialect)
+        if dialect is not None:
+            dialect(document)
+        for source in document["sources"]:
+            source["profileDigest"] = digests[source["profile"]]
+        sources = json.loads(inputs.acquisitions)
+        for member in sources.values():
+            response = member["response"]
+            signed = response["receipt"]
+            if receipt is not None:
+                receipt(signed)
+            if request is not None:
+                salt = bytes.fromhex(response["salts"]["args"])
+                signed["argumentsCommitment"] = READER.digest_of(salt + b"args:" + READER.canon(request))
+            signed["keyId"] = hashlib.sha256(public).hexdigest()[:32]
+            del signed["signature"]
+            message = b"judgment-pack-gateway/receipt/3:" + READER.canon(READER.read_document(json.dumps(signed).encode(), "a receipt"))
+            signed["signature"] = sign(message).hex()
+        inputs.profiles = json.dumps(profiles).encode("utf-8")
+        inputs.dialect = json.dumps(document).encode("utf-8")
+        inputs.acquisitions = json.dumps(sources).encode("utf-8")
+        return inputs
+
+    def _with_arguments(self, arguments: Any, parameters: Any = None) -> Any:
+        inputs = self.inputs("http-shaped-source")
+        document = json.loads(inputs.dialect)
+        document["sources"][0]["arguments"] = arguments
+        if parameters is not None:
+            document["case"]["parameters"].update(parameters)
+        inputs.dialect = json.dumps(document).encode("utf-8")
+        return inputs.verify().answer
+
+    def test_the_test_signer_is_rfc_8032s(self) -> None:
+        public, sign = signer(bytes.fromhex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"))
+        self.assertEqual("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", public.hex())
+        self.assertEqual(
+            "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
+            sign(b"").hex(),
+        )
+        self.assertTrue(READER.signature_verifies(public, b"", sign(b"")))
+
+    def test_the_tenth_vectors_request_is_adapter_https(self) -> None:
+        outcome = self.inputs("http-shaped-source").verify()
+        intake = json.loads(outcome.preparation)["outcomes"][1]
+        self.assertEqual({"method": "GET", "path": "/intake/requests", "query": {"id": "REQ-7"}}, intake["arguments"])
+
+    def test_a_request_that_does_not_fit_its_profile_is_a_mismatch(self) -> None:
+        def shape(value: str, tools: Any = None) -> Any:
+            def alter(profile: dict[str, Any]) -> None:
+                profile["shape"] = value
+                profile.pop("tools", None)
+                if tools is not None:
+                    profile["tools"] = tools
+
+            return alter
+
+        # the http request under a profile of shape mcp, and under one of shape command, which serves none
+        for profile in (shape("mcp", ["requests"]), shape("command")):
+            answer = self._altered("http-shaped-source", profile=profile).verify().answer
+            self.assertEqual("profile-mismatch", answer.get("finding"), answer)
+        # under mcp, a request is exactly a tool call
+        for arguments in (
+            {"tool": "requests", "arguments": {"id": {"$param": "requestId"}}, "path": "/intake/requests"},
+            {"tool": "requests"},
+            {"tool": {"$param": "requestId"}, "arguments": {}},
+        ):
+            with self.subTest(arguments=arguments):
+                answer = self._altered(
+                    "http-shaped-source",
+                    profile=shape("mcp", ["requests"]),
+                    dialect=lambda d, a=arguments: d["sources"][0].__setitem__("arguments", a),
+                ).verify().answer
+                self.assertEqual("profile-mismatch", answer.get("finding"), answer)
+
+    def test_an_http_request_is_an_object_held_to_its_commitment_not_to_a_member_set(self) -> None:
+        # not an object, a template form, or outside the template rules: refused with the dialect
+        for arguments in ("/intake/requests", [], {"$param": "requestId"}, {"path": {"$param": "nope"}}, {"path": {"$param": "runAt"}}):
+            with self.subTest(arguments=arguments):
+                self.assertEqual("input-malformed", self._with_arguments(arguments).get("refused"))
+        # any other object is of the form, and the receipt does not commit it (§5.2, check 4)
+        for arguments in (
+            {"path": "/intake/requests", "method": "GET", "query": {"id": "REQ-8"}},
+            {"path": "/intake/requests", "method": "GET"},
+            {"path": "/intake/requests", "method": "PUT", "query": {"id": "REQ-7"}},
+            {"path": "/intake/requests", "method": "POST", "query": {"id": "REQ-7"}, "body": {"id": "REQ-7"}},
+            {"tool": "requests", "arguments": {"id": {"$param": "requestId"}}},
+            {},
+        ):
+            with self.subTest(arguments=arguments):
+                self.assertEqual("acquisition-invalid", self._with_arguments(arguments).get("finding"))
+        # under adapter-http, a query is an object of string templates
+        for query in ({"id": 7}, {"id": True}, {"id": ["REQ-7"]}, {"$param": "requestId"}, "id=REQ-7"):
+            with self.subTest(query=query):
+                arguments = {"path": "/intake/requests", "method": "GET", "query": query}
+                self.assertEqual("profile-mismatch", self._with_arguments(arguments).get("finding"))
+        integer = {"n": {"pointer": "/n", "type": "integer"}}
+        query = {"path": "/intake/requests", "method": "GET", "query": {"id": {"$param": "n"}}}
+        self.assertEqual("profile-mismatch", self._with_arguments(query, integer).get("finding"))
+        # a $text is a string template; the case has no /n, so the reading ends at the case's parameter
+        query["query"]["id"] = {"$text": "REQ-{{n}}"}
+        self.assertEqual("parameter-invalid", self._with_arguments(query, integer).get("finding"))
+
+    def test_a_connections_request_is_read_under_its_own_adapter(self) -> None:
+        # The form a gateway connection takes (adapters/README.md), whose `query` is a WIQL string: read
+        # under a profile of shape http whose adapter is the connection's; under adapter-http, its query
+        # is of another form.
+        request = {
+            "connection": "board",
+            "revision": "0" * 64,
+            "read": "workitems.query",
+            "query": "SELECT [System.Id] FROM WorkItems",
+            "top": 50,
+        }
+
+        def adapter(name: str) -> Any:
+            return lambda p: p["adapter"].__setitem__("name", name)
+
+        def receipt(name: str) -> Any:
+            return lambda r: r["acquisition"]["adapter"].__setitem__("name", name)
+
+        def with_request(d: dict[str, Any]) -> None:
+            d["sources"][0]["arguments"] = dict(request)
+
+        answer = self._altered(
+            "http-shaped-source", profile=adapter("adapter-sources"), dialect=with_request, receipt=receipt("adapter-sources"), request=request
+        ).verify().answer
+        self.assertEqual("preparation-differs", answer.get("finding"), answer)
+        answer = self._altered("http-shaped-source", dialect=with_request, request=request).verify().answer
+        self.assertEqual("profile-mismatch", answer.get("finding"), answer)
+
+    def test_the_records_shape_is_the_profiles(self) -> None:
+        answer = self._altered("http-shaped-source").verify().answer
+        self.assertEqual("preparation-differs", answer.get("finding"), answer)  # signed again, every check passes
+        for shape in ("mcp", "airbyte"):
+            with self.subTest(shape=shape):
+                answer = self._altered(
+                    "http-shaped-source", receipt=lambda r, shape=shape: r["acquisition"].__setitem__("shape", shape)
+                ).verify().answer
+                self.assertEqual("acquisition-invalid", answer.get("finding"), answer)
+
+    def test_a_receipt_that_attests_a_page_is_not_read_whatever_the_shape(self) -> None:
+        def paged(receipt: dict[str, Any]) -> None:
+            receipt["acquisition"]["pageItems"] = [receipt["resultDigest"]]
+
+        for name in ("http-shaped-source", "valid"):
+            with self.subTest(vector=name):
+                answer = self._altered(name, receipt=paged).verify().answer
+                self.assertEqual("acquisition-invalid", answer.get("finding"), answer)
+
+    def test_a_paged_mcp_receipt_is_refused_the_amendments_one_restriction(self) -> None:
+        # Review round 5, finding 1: a signed acquisition of shape mcp whose receipt carries pageItems was
+        # read under the accepted text; the amendment refuses it (§5.2), the one answer it changes for an
+        # input that was read before. The valid vector, signed again: without the page every check passes,
+        # with it the acquisition is refused.
+        unpaged = self._altered("valid").verify().answer
+        self.assertEqual("preparation-differs", unpaged.get("finding"), unpaged)
+        paged = self._altered(
+            "valid", receipt=lambda r: r["acquisition"].__setitem__("pageItems", [r["resultDigest"]])
+        ).verify().answer
+        self.assertEqual("acquisition-invalid", paged.get("finding"), paged)
+
+    def test_a_stream_read_under_an_airbyte_profile_is_read_as_its_shape_gives_it(self) -> None:
+        def as_airbyte(stream: dict[str, Any], paged: bool) -> Any:
+            def receipt(r: dict[str, Any]) -> None:
+                r["acquisition"]["shape"] = "airbyte"
+                if paged:
+                    r["acquisition"]["pageItems"] = []
+
+            return self._altered(
+                "http-shaped-source",
+                profile=lambda p: p.__setitem__("shape", "airbyte"),
+                dialect=lambda d: d["sources"][0].__setitem__("arguments", dict(stream)),
+                receipt=receipt,
+                request=stream,
+            ).verify().answer
+
+        # adapter-airbyte's stream read, and an object of other members: the request is not a member set
+        for stream in ({"stream": "requests", "namespace": None, "limit": 10}, {"stream": "requests", "syncMode": "full_refresh"}):
+            with self.subTest(stream=stream):
+                self.assertEqual("preparation-differs", as_airbyte(stream, False).get("finding"))
+                self.assertEqual("acquisition-invalid", as_airbyte(stream, True).get("finding"))
+
+    def test_a_dialect_of_version_3_is_refused_before_its_form(self) -> None:
+        def answer(alter: Any, case: bytes | None = None) -> Any:
+            inputs = self.inputs("http-shaped-source")
+            document = json.loads(inputs.dialect)
+            alter(document)
+            inputs.dialect = json.dumps(document).encode("utf-8")
+            if case is not None:
+                inputs.case = case
+            return inputs.verify().answer
+
+        def unbound(document: dict[str, Any]) -> None:
+            source = document["sources"][0]
+            del source["profile"], source["profileDigest"]
+            source.update({"platform": "intake", "operation": "requests", "shape": "http", "record": "adapter-http"})
+
+        def version(value: Any) -> Any:
+            return lambda d: d.__setitem__("version", value)
+
+        self.assertEqual("version-unread", answer(version(3)).get("refused"))
+        self.assertEqual("version-unread", answer(lambda d: (unbound(d), d.__setitem__("version", 3))).get("refused"))
+        self.assertEqual("version-unread", answer(lambda d: d.update({"version": 3, "Version": "x"})).get("refused"))
+        # an unbound source in a version-2 dialect; versions this document does not define
+        self.assertEqual("input-malformed", answer(unbound).get("refused"))
+        self.assertEqual("input-malformed", answer(version(4)).get("refused"))
+        self.assertEqual("input-malformed", answer(version("3")).get("refused"))
+        # the bounds before it come first
+        self.assertEqual("input-over-bound", answer(version(3), b"[" * 33 + b"]" * 33).get("refused"))
+
     # The six choices the text now decides (RFC 0018, Evidence), each held here as the text says.
 
     def _program(self, *arguments: str) -> subprocess.CompletedProcess[bytes]:
@@ -685,7 +943,7 @@ class DialectTextTests(unittest.TestCase):
         companion = (ROOT / COMPANION).read_text(encoding="utf-8")
         section = companion[companion.index("## 11.") : companion.index("## 12.")]
         named = set(re.findall(r"`([a-z]+(?:-[a-z]+)*)`", section))
-        refusals = {"input-over-bound", "input-malformed", "kind-unread"}
+        refusals = {"input-over-bound", "input-malformed", "version-unread", "kind-unread"}
         self.assertLessEqual(FINDINGS | refusals, named)
         counts = collections.Counter(row["expectedFinding"] for row in json.loads(
             (DIALECT / "manifest.json").read_text(encoding="utf-8"))["cases"] if "expectedFinding" in row)

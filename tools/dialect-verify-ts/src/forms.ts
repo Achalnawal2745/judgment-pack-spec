@@ -47,8 +47,8 @@ export type Source = {
   profile?: string;
   profileDigest?: string;
   maxAge?: number;
-  tool?: string;
-  template?: JVal;
+  template?: JVal; // `arguments`, the whole request template
+  scope?: Map<string, ParamType>; // its scope, for the profile's rules on the request (§4.1)
   calculation?: Calculation;
   factTargets: string[];
   evidenceTargets: string[];
@@ -380,6 +380,27 @@ function checkTemplate(v: JVal, scope: Scope, what: string): void {
   }
 }
 
+/** A string template (§4.1): a string, a `$text`, or a `$param` naming a `string` or `timestamp` parameter. */
+export function stringTemplate(v: JVal | undefined, scope: Map<string, ParamType>): boolean {
+  if (v === undefined) return false;
+  if (v.t === "str") return true;
+  if (v.t !== "obj" || v.m.size !== 1) return false;
+  const [name, arg] = Array.from(v.m)[0];
+  if (name === "$text") return true;
+  if (name !== "$param" || arg.t !== "str") return false;
+  const type = scope.get(arg.v);
+  return type === "string" || type === "timestamp";
+}
+
+/** An operation's `arguments` (§4.1): the template of its request, an object and not a template form, held to the
+ * rules of a template. What more it must be is the profile's to say, a finding of the recomputation. */
+function readRequest(v: JVal | undefined, scope: Scope, what: string): JObj {
+  const o = object(v, what);
+  if (Array.from(o.m.keys()).some((k) => k.startsWith("$"))) malformed(`${what} is a template form, not an object`);
+  checkTemplate(o, scope, what);
+  return o;
+}
+
 function targetsOf(read: Read): { facts: string[]; evidence: string[] } {
   if (read.copy) return { facts: read.copy.facts.map((f) => f.target), evidence: read.copy.evidence.map((e) => e.requirement) };
   const facts = new Set<string>();
@@ -402,6 +423,7 @@ function classList(v: JVal | undefined, what: string): string[] {
 export function readDialect(d: JVal): Dialect {
   const o = exact(d, "the dialect", ["version", "case"], ["sources", "admits", "unmapped", "unmappedEvidence", "provider", "facts", "evidence"]);
   const version = o.m.get("version")!;
+  // A version-3 dialect was refused before any form was checked (verify.ts, `version-unread`).
   if (version.t !== "num" || version.lit !== "2") malformed("the dialect's version is not the integer 2");
   if (o.m.has("provider") && string(o.m.get("provider"), "provider") !== "") malformed("provider is not the empty string");
   for (const k of ["facts", "evidence"]) if (o.m.has(k) && o.m.get(k)!.t !== "null") malformed(`the dialect's ${k} is not null`);
@@ -482,10 +504,8 @@ export function readDialect(d: JVal): Dialect {
       if (!DIGEST.test(digest)) malformed(`${what}.profileDigest is not a digest`);
       source.profileDigest = digest;
       source.maxAge = integerIn(so.m.get("maxAge"), 1, 86400, `${what}.maxAge`);
-      const args = exact(so.m.get("arguments"), `${what}.arguments`, ["tool", "arguments"]);
-      source.tool = nonEmpty(args.m.get("tool"), `${what}.arguments.tool`);
-      source.template = args.m.get("arguments")!;
-      checkTemplate(source.template, scope, `${what}.arguments.arguments`);
+      source.template = readRequest(so.m.get("arguments"), scope, `${what}.arguments`);
+      source.scope = scope;
     }
     if (so.m.has("calculation")) {
       const co = exact(so.m.get("calculation"), `${what}.calculation`, ["inputs", "tables"]);

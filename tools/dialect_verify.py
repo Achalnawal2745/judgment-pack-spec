@@ -11,7 +11,12 @@ whose `verify-run` is a third reader of the same bytes.
 
 It reads dialect version 2 and the kind `operation`, the only kind the staged vectors exercise, and
 refuses every other kind as `kind-unread` (spec/dialect.md §4: a kind without vectors is defined
-and not claimable). It uses the Python standard library alone.
+and not claimable). Since the amendment of 2026-10-15 it reads `operation` of the shapes `airbyte`,
+`mcp` and `http` (§4.1): a tool call for `mcp`, and for the others the request the gateway source
+takes, held to being an object, the template rules and its commitment, and not to a set of members. It does not read dialect version 3 — the
+kinds of §4.3, and the unbound source form with its binding document (§4.4) — and refuses a dialect
+of that version as `version-unread` (§11), taking no binding document. It uses the Python standard
+library alone.
 
     python tools/dialect_verify.py --dialect mapping.json --case case.json \\
         --acquisitions sources.json --profiles profiles.json --preparation preparation.json \\
@@ -667,8 +672,8 @@ class Source:
     profile_id: str = ""
     profile_digest: str = ""
     max_age: int = 0
-    tool: str = ""
-    template: Any = None
+    template: Any = None  # `arguments`, the request's template, whole
+    scope: dict[str, str] = field(default_factory=dict)  # each parameter of its scope, by its type
     calculation: dict[str, Any] | None = None
 
 
@@ -705,6 +710,52 @@ def check_template(value: Any, scope: dict[str, str], what: str) -> None:
     elif isinstance(value, list):
         for item in value:
             check_template(item, scope, what)
+
+
+def is_string_template(value: Any, scope: dict[str, str]) -> bool:
+    """§4.1: a string, a $text, or a $param naming a parameter of type string or timestamp."""
+    if isinstance(value, str):
+        return True
+    if isinstance(value, dict) and len(value) == 1:
+        (form, argument), = value.items()
+        if form == "$text":
+            return True
+        if form == "$param":
+            return scope.get(argument) in ("string", "timestamp")
+    return False
+
+
+def check_request(value: Any, scope: dict[str, str], what: str) -> None:
+    """§4.1: `arguments`, the template of a request: an object, not a template form, held to the rules
+    of a template. What more it must be depends on the profile's shape and adapter, a finding
+    (`request_misfit`)."""
+    if not isinstance(value, dict) or any(name.startswith("$") for name in value):
+        raise malformed(f"{what}: arguments are not an object, or are a template form")
+    check_template(value, scope, what)
+
+
+def request_misfit(source: Source, profile: dict[str, Any]) -> str | None:
+    """§4.1: why a source's request does not fit its profile, `profile-mismatch`; None when it fits. A
+    tool call for `mcp`; for `http` and `airbyte`, any object, but that under `adapter-http` a `query`
+    is an object of string templates. A profile of shape `command` serves no operation."""
+    request = source.template
+    if profile["shape"] == "command":
+        return "a profile of shape command serves no operation"
+    if profile["shape"] == "mcp":
+        tool = request.get("tool")
+        if set(request) != {"tool", "arguments"} or not isinstance(tool, str) or not tool:
+            return "a request that is not a tool call, under a profile of shape mcp"
+        if tool not in profile.get("tools", []):
+            return "a tool the profile does not allow"
+    elif profile["adapter"]["name"] == "adapter-http" and "query" in request:
+        query = request["query"]
+        if (
+            not isinstance(query, dict)
+            or any(name.startswith("$") for name in query)
+            or not all(is_string_template(member, source.scope) for member in query.values())
+        ):
+            return "a query that is not an object of string templates, under adapter-http"
+    return None
 
 
 def placeholders(text: str, what: str = "a $text") -> list[str]:
@@ -886,7 +937,8 @@ def parse_dialect(document: Any) -> Dialect:
     if not (isinstance(top["version"], Num) and top["version"].is_integer()):
         raise malformed("the dialect's version is not an integer")
     if integer_of(top["version"]) != 2:
-        raise malformed("a dialect version this reader does not read")
+        # Version 3 was refused before any form was checked (§11, `version-unread`).
+        raise malformed("a dialect version this document does not define")
     if "provider" in top and top["provider"] != "":
         raise malformed("provider is not the empty string")
     for name in ("facts", "evidence"):
@@ -996,15 +1048,12 @@ def parse_dialect(document: Any) -> Dialect:
                 raise malformed(f"{what}: profileDigest is not a digest")
             if not is_integer(raw["maxAge"]) or not 1 <= integer_of(raw["maxAge"]) <= 86400:
                 raise malformed(f"{what}: maxAge is not an integer from 1 to 86400")
-            arguments = closed(raw["arguments"], {"tool", "arguments"}, set(), f"{what} arguments")
-            if not isinstance(arguments["tool"], str) or not arguments["tool"]:
-                raise malformed(f"{what}: tool is not a non-empty string")
-            check_template(arguments["arguments"], scope, what)
+            check_request(raw["arguments"], scope, f"{what} arguments")
             source.profile_id = raw["profile"]
             source.profile_digest = raw["profileDigest"]
             source.max_age = integer_of(raw["maxAge"])
-            source.tool = arguments["tool"]
-            source.template = arguments["arguments"]
+            source.template = raw["arguments"]
+            source.scope = scope
         if "calculation" in raw:
             calculation = closed(raw["calculation"], {"inputs", "tables"}, set(), f"{what} calculation")
             inputs, tables = calculation["inputs"], calculation["tables"]
@@ -1416,6 +1465,8 @@ def check_acquisition(
         and isinstance(acquisition.get("observedAt"), str)
     ):
         raise invalid("an acquisition member not of its form")
+    if "pageItems" in acquisition:
+        raise invalid("the receipt attests a page, which no preparation reads")
     key = bytes.fromhex(profile["publicKey"])
     if receipt["keyId"] != hashlib.sha256(key).hexdigest()[:32]:
         raise invalid("keyId is not the profile key's")
@@ -1539,8 +1590,9 @@ def recompute(
         profile = profiles.get(source.profile_id)
         if profile is None or digest_of(canon(profile)) != source.profile_digest:
             raise Finding("profile-mismatch", f"{source.name}: no trusted profile of that id and digest")
-        if profile["shape"] != "mcp" or source.tool not in profile.get("tools", []):
-            raise Finding("profile-mismatch", f"{source.name}: a tool or shape the profile does not allow")
+        misfit = request_misfit(source, profile)
+        if misfit is not None:
+            raise Finding("profile-mismatch", f"{source.name}: {misfit}")
         if ("calculator" in profile) != (source.calculation is not None):
             raise Finding("profile-mismatch", f"{source.name}: calculation and calculator disagree")
     # 2. parameter-invalid, the case's first
@@ -1588,7 +1640,7 @@ def recompute(
         if source.name not in acquisitions:
             raise Finding("acquisition-missing", source.name)
         response = acquisitions[source.name]["response"]
-        outcome.request = {"tool": source.tool, "arguments": instantiate(source.template, values)}
+        outcome.request = instantiate(source.template, values)
         check_acquisition(source, profile, response, outcome.request, at)
         outcome.receipt = response["receipt"]
         receipts.append(response["receipt"])
@@ -1979,6 +2031,15 @@ def verify(
         given = read_document(preparation, "the preparation")
         record_document = read_record(record) if record is not None else None
         count_bounds(dialect_document, acquisitions_document)
+        # §11, the fourth phase: a dialect of a version this reader does not read is refused before any
+        # form is checked. Version 3 is defined (§4.3, §4.4) and not read here.
+        if isinstance(dialect_document, dict) and is_integer(dialect_document.get("version")):
+            if integer_of(dialect_document["version"]) == 3:
+                raise Refused(
+                    "version-unread",
+                    "dialect version 3 — the unbound source form and its binding document (§4.4), and "
+                    "the kinds of §4.3 — is defined, and not read by this reader",
+                )
         parsed_record = parse_record(record, record_document) if record is not None else None
         if not isinstance(acquisitions_document, dict):
             raise malformed("the acquisitions are not an object")

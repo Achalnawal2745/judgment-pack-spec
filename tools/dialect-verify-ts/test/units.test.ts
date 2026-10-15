@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { scanBytes } from "../src/bounds.ts";
 import { add, decodePoint, encodePoint, keyAcceptable, smallOrder, verify as edVerify } from "../src/ed25519.ts";
-import { NotRead, canon, isIntegerLiteral, member, num, obj, parse, preparationForm, read, resolve, str, utf8 } from "../src/json.ts";
+import { NotRead, arr, canon, isIntegerLiteral, member, num, obj, parse, preparationForm, read, resolve, str, utf8 } from "../src/json.ts";
 import type { JObj, JVal } from "../src/json.ts";
 import { instant } from "../src/time.ts";
 import { loadVector } from "../src/vector.ts";
@@ -463,4 +463,167 @@ test("the program prints the report in §9.5's form, one line, and exits 0, 1, 2
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ---- the shapes of an `operation` (§4.1, §5.2, the amendment of 2026-10-15), and version 3 (§11) ----
+// Written by the amendment's author, who had read both readers: no part of this reader's independence.
+
+const httpShaped = loadVector(join(VECTORS, "http-shaped-source"), true);
+
+type Alteration = { profile?: (p: JObj) => void; dialect?: (d: JObj) => void; receipt?: (r: JObj) => void; request?: JVal };
+
+/** The vector's inputs altered, each receipt signed again under a key generated here and its profile's digest
+ * written into the dialect; with `request`, the receipt commits to that request under the vector's salt. */
+function alteredAndSigned(base: Inputs, change: Alteration): Inputs {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const raw = Buffer.from(publicKey.export({ format: "jwk" }).x as string, "base64url");
+  const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
+  const sha = (b: Uint8Array) => hex(createHash("sha256").update(b).digest());
+  const profiles = parse(text(base.profiles)) as { a: JObj[] };
+  for (const p of profiles.a) {
+    change.profile?.(p);
+    p.m.set("publicKey", str(hex(raw)));
+  }
+  const digests = new Map(profiles.a.map((p) => [(p.m.get("id") as { v: string }).v, "sha256:" + sha(canon(p))]));
+  const dialect = parse(text(base.dialect)) as JObj;
+  change.dialect?.(dialect);
+  for (const s of (dialect.m.get("sources") as { a: JObj[] }).a) s.m.set("profileDigest", str(digests.get((s.m.get("profile") as { v: string }).v)!));
+  const acquisitions = parse(text(base.acquisitions)) as JObj;
+  for (const [, a] of acquisitions.m) {
+    const response = member(a, "response") as JObj;
+    const receipt = response.m.get("receipt") as JObj;
+    change.receipt?.(receipt);
+    if (change.request !== undefined) {
+      const salt = Buffer.from((member(response.m.get("salts"), "args") as { v: string }).v, "hex");
+      receipt.m.set("argumentsCommitment", str("sha256:" + sha(Buffer.concat([salt, Buffer.from("args:"), canon(change.request)]))));
+    }
+    receipt.m.set("keyId", str(sha(raw).slice(0, 32)));
+    receipt.m.delete("signature");
+    receipt.m.set("signature", str(hex(nodeSign(null, Buffer.concat([Buffer.from("judgment-pack-gateway/receipt/3:"), canon(receipt)]), privateKey))));
+  }
+  return { ...base, dialect: canon(dialect), profiles: canon(profiles as unknown as JVal), acquisitions: canon(acquisitions) };
+}
+const sourceOf = (d: JObj) => (d.m.get("sources") as { a: JObj[] }).a[0];
+const shapeOf = (shape: string, tools?: string[]) => (p: JObj) => {
+  p.m.set("shape", str(shape));
+  if (tools === undefined) p.m.delete("tools");
+  else p.m.set("tools", parse(JSON.stringify(tools)));
+};
+
+test("§4.1: the tenth vector's request is adapter-http's method, path and query, not a tool call", () => {
+  const r = verify(httpShaped);
+  assert.equal(r.kind, "reading");
+  const intake = (member(parse(text(r.recomputed!)), "outcomes") as { a: JObj[] }).a[1];
+  assert.equal(text(preparationForm(member(intake, "arguments")!)), '{"method":"GET","path":"/intake/requests","query":{"id":"REQ-7"}}');
+});
+
+test("§4.1, §5.1: a request that does not fit its profile is profile-mismatch", () => {
+  // the http request under a profile of shape mcp, and under one of shape command, which serves none
+  assert.equal(verdict(alteredAndSigned(httpShaped, { profile: shapeOf("mcp", ["requests"]) })), "finding:profile-mismatch");
+  assert.equal(verdict(alteredAndSigned(httpShaped, { profile: shapeOf("command") })), "finding:profile-mismatch");
+  // under mcp, a request is exactly a tool call
+  for (const near of [
+    '{"tool":"requests","arguments":{"id":{"$param":"requestId"}},"path":"/intake/requests"}',
+    '{"tool":"requests"}',
+    '{"tool":{"$param":"requestId"},"arguments":{}}',
+  ]) {
+    const asked = (d: JObj) => sourceOf(d).m.set("arguments", parse(near));
+    assert.equal(verdict(alteredAndSigned(httpShaped, { profile: shapeOf("mcp", ["requests"]), dialect: asked })), "finding:profile-mismatch", near);
+  }
+});
+
+test("§4.1: an http request is an object held to the template rules and its commitment, not to a member set", () => {
+  const request = (to: string) => verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"arguments":{"path":"/intake/requests","method":"GET","query":{"id":{"$param":"requestId"}}}', `"arguments":${to}`) });
+  // not an object, a template form, or outside the template rules: refused with the dialect
+  for (const bad of ['"/intake/requests"', "[]", '{"$param":"requestId"}', '{"path":{"$param":"nope"}}', '{"path":{"$param":"runAt"}}']) {
+    assert.equal(request(bad), "refusal:input-malformed", bad);
+  }
+  // any other object is of the form, and the receipt does not commit it (§5.2, check 4)
+  for (const other of [
+    '{"path":"/intake/requests","method":"GET","query":{"id":"REQ-8"}}',
+    '{"path":"/intake/requests","method":"GET"}',
+    '{"path":"/intake/requests","method":"PUT","query":{"id":"REQ-7"}}',
+    '{"path":"/intake/requests","method":"POST","query":{"id":"REQ-7"},"body":{"id":"REQ-7"}}',
+    '{"tool":"requests","arguments":{"id":{"$param":"requestId"}}}',
+    "{}",
+  ]) {
+    assert.equal(request(other), "finding:acquisition-invalid", other);
+  }
+  // under adapter-http, a query is an object of string templates
+  for (const query of ['{"id":7}', '{"id":true}', '{"id":["REQ-7"]}', '{"$param":"requestId"}', '"id=REQ-7"']) {
+    assert.equal(request(`{"path":"/intake/requests","method":"GET","query":${query}}`), "finding:profile-mismatch", query);
+  }
+  const withInteger = edit(httpShaped.dialect, '"parameters":{"requestId":{"pointer":"/id","type":"string"}}', '"parameters":{"requestId":{"pointer":"/id","type":"string"},"n":{"pointer":"/n","type":"integer"}}');
+  const integerQuery = (to: string) => verdict({ ...httpShaped, dialect: edit(withInteger, '"query":{"id":{"$param":"requestId"}}', `"query":${to}`) });
+  assert.equal(integerQuery('{"id":{"$param":"n"}}'), "finding:profile-mismatch");
+  assert.equal(integerQuery('{"id":{"$text":"REQ-{{n}}"}}'), "finding:parameter-invalid"); // of the form; the case has no /n
+});
+
+test("§4.1: a connection's request is read under its own adapter", () => {
+  // The form a gateway connection takes (adapters/README.md), whose `query` is a WIQL string.
+  const connection = '{"connection":"board","revision":"' + "0".repeat(64) + '","read":"workitems.query","query":"SELECT [System.Id] FROM WorkItems","top":50}';
+  const asked = (d: JObj) => sourceOf(d).m.set("arguments", parse(connection));
+  const adapterName = (name: string) => (p: JObj) => (p.m.get("adapter") as JObj).m.set("name", str(name));
+  const receiptAdapter = (name: string) => (r: JObj) => (member(r.m.get("acquisition"), "adapter") as JObj).m.set("name", str(name));
+  assert.equal(
+    verdict(alteredAndSigned(httpShaped, { profile: adapterName("adapter-sources"), dialect: asked, receipt: receiptAdapter("adapter-sources"), request: parse(connection) })),
+    "finding:preparation-differs",
+  );
+  // under adapter-http, its query is of another form
+  assert.equal(verdict(alteredAndSigned(httpShaped, { dialect: asked, request: parse(connection) })), "finding:profile-mismatch");
+});
+
+test("§5.2: the record's acquisition.shape is the profile's", () => {
+  assert.equal(verdict(alteredAndSigned(httpShaped, {})), "finding:preparation-differs"); // signed again, every check passes
+  const shape = (to: string) => (r: JObj) => (r.m.get("acquisition") as JObj).m.set("shape", str(to));
+  assert.equal(verdict(alteredAndSigned(httpShaped, { receipt: shape("mcp") })), "finding:acquisition-invalid");
+  assert.equal(verdict(alteredAndSigned(httpShaped, { receipt: shape("airbyte") })), "finding:acquisition-invalid");
+});
+
+test("§5.2: a receipt that attests a page is not read, whatever the shape", () => {
+  const paged = (r: JObj) => (r.m.get("acquisition") as JObj).m.set("pageItems", parse(`[${JSON.stringify((r.m.get("resultDigest") as { v: string }).v)}]`));
+  assert.equal(verdict(alteredAndSigned(httpShaped, { receipt: paged })), "finding:acquisition-invalid");
+  assert.equal(verdict(alteredAndSigned(valid, { receipt: paged })), "finding:acquisition-invalid");
+});
+
+test("§5.2: a paged mcp receipt is refused, the amendment's one restriction (review round 5, finding 1)", () => {
+  // Read under the accepted text, refused under the amendment: the one answer it changes for an input that was
+  // read before. The valid vector, signed again: without the page every check passes, with it the acquisition
+  // is refused.
+  assert.equal(verdict(alteredAndSigned(valid, {})), "finding:preparation-differs");
+  const paged = (r: JObj) => (r.m.get("acquisition") as JObj).m.set("pageItems", arr([r.m.get("resultDigest")!]));
+  assert.equal(verdict(alteredAndSigned(valid, { receipt: paged })), "finding:acquisition-invalid");
+});
+
+test("§4.1: a stream read under a profile of shape airbyte is read as its shape gives it", () => {
+  const asAirbyte = (stream: string, receipt?: (r: JObj) => void): Alteration => ({
+    profile: shapeOf("airbyte"),
+    dialect: (d) => sourceOf(d).m.set("arguments", parse(stream)),
+    receipt: (r) => {
+      (r.m.get("acquisition") as JObj).m.set("shape", str("airbyte"));
+      receipt?.(r);
+    },
+    request: parse(stream),
+  });
+  const paged = (r: JObj) => (r.m.get("acquisition") as JObj).m.set("pageItems", arr([]));
+  // adapter-airbyte's stream read, and an object of other members: the request is not a member set
+  for (const stream of ['{"stream":"requests","namespace":null,"limit":10}', '{"stream":"requests","syncMode":"full_refresh"}']) {
+    assert.equal(verdict(alteredAndSigned(httpShaped, asAirbyte(stream))), "finding:preparation-differs", stream);
+    assert.equal(verdict(alteredAndSigned(httpShaped, asAirbyte(stream, paged))), "finding:acquisition-invalid", stream);
+  }
+});
+
+test("§11: a dialect of version 3 is refused as version-unread, before its form is checked", () => {
+  const unbound = '"platform":"intake","operation":"requests","shape":"http","record":"adapter-http","maxAge":300';
+  const asUnbound = (b: Uint8Array) => edit(b, '"profile":"intake","profileDigest":"sha256:dec2468ef46d4026c7f813ff768aba66d2d8e7891e8b8ecb99fb099ef3fd363e","maxAge":300', unbound);
+  assert.equal(verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"version":2', '"version":3') }), "refusal:version-unread");
+  assert.equal(verdict({ ...httpShaped, dialect: edit(asUnbound(httpShaped.dialect), '"version":2', '"version":3') }), "refusal:version-unread");
+  // malformed beside it: still version-unread, since the form is not checked
+  assert.equal(verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"version":2', '"version":3,"Version":"x"') }), "refusal:version-unread");
+  // an unbound source in a version-2 dialect, and a version this document does not define
+  assert.equal(verdict({ ...httpShaped, dialect: asUnbound(httpShaped.dialect) }), "refusal:input-malformed");
+  assert.equal(verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"version":2', '"version":4') }), "refusal:input-malformed");
+  assert.equal(verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"version":2', '"version":3.0') }), "refusal:input-malformed");
+  // the bounds measured before it come first
+  assert.equal(verdict({ ...httpShaped, dialect: edit(httpShaped.dialect, '"version":2', '"version":3'), case: utf8("[".repeat(33) + "]".repeat(33)) }), "refusal:input-over-bound");
 });

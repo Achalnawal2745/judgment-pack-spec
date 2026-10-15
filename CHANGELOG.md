@@ -169,6 +169,24 @@ here.
 
 ### Changed
 
+- [RFC 0018](rfcs/0018-dialect.md) is amended (2026-10-15), and
+  [`spec/dialect.md`](spec/dialect.md) with it; its status stays `Accepted`. Version 2's
+  `operation` reads a gateway source of shape `airbyte`, `mcp` or `http`, as the reference Runner's
+  mapping v2 does since its pull request 80: the record's `acquisition.shape` is the profile's; the
+  request is a tool call for `mcp`, and for `http` and `airbyte` the request the gateway source of
+  that shape takes, held to being an object, to the template rules and to the receipt's commitment,
+  not to a set of members (`airbyte` defined and not claimable); and a receipt that attests a page
+  is refused whatever the shape. This changes accepted text in two ways: a compatible extension of
+  the record kind to every adapter shape, under which every version-2 dialect that was well-formed
+  stays so and the nine vectors keep their answers; and one restriction, the refusal of a paged
+  acquisition, which changes one answer the accepted text gave: a signed `mcp` acquisition whose
+  receipt carried `pageItems` was read and is refused now. The Runner has never prepared one. Version 3 gains the unbound source form, an `operation` that names the catalog platform
+  and operation it is read through in place of a profile, with a binding document and the bound
+  dialect it yields; it is defined and not claimable, since no Runner reads version 3. A verifier
+  that does not read a dialect's version refuses it, `version-unread`. The Runner's tenth
+  preparation vector, `http-shaped-source`, is staged byte for byte beside the nine, and both
+  readers, `tools/dialect_verify.py` and `tools/dialect-verify-ts/`, read it to the Runner's answer;
+  their extensions are one author's, so for the amendment their agreement is not independent.
 - Implementations page and presentation: they say what the runtime and Runner now establish about
   a decision record, as runtime conventions and in the runtime's own wording. The runtime's listing
   names chaining on by default, record signatures in a sidecar with key rotation, checkpoints a
