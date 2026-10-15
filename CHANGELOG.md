@@ -7,6 +7,14 @@ here.
 
 ### Added
 
+- [RFC 0020](rfcs/0020-workflow.md) (Draft): the workflow, a proposed companion document beside
+  Core, with a `workflow-verifier` reader class. It defines pinned stages, a selection between
+  stages, one instance per selected record, projected cases, output lineage and an execution
+  inventory. The proposed text is added as `spec/workflow.md`, held equal to the RFC's
+  Specification, normative for nothing while the RFC is a draft and in no release bundle
+  (`.gitattributes`, `export-ignore`). Its two-stage run and independent readers remain to be
+  recorded and implemented; no workflow fixture or conformance claim exists. Nothing in Core,
+  the dialect or the conformance corpora changes.
 - The reference Runner's eleventh and twelfth preparation vectors, the first of dialect version 3,
   are staged byte for byte in
   [`conformance/dialect/`](https://github.com/Judgment-Pack/judgment-pack-spec/tree/main/conformance/dialect)
