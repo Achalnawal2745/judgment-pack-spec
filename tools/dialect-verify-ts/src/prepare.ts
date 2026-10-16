@@ -239,10 +239,15 @@ function requestMisfit(s: Source, p: Profile): string | null {
 
 // ---- acquisitions (§5.2) ----
 
-function checkReceipt(acq: Acquisition, profile: Profile, request: JObj, who: string): void {
+/** The instants of a receipt's `acquisition.observedAt` and `servedAt`, which check 1 found present. */
+type Times = { observed: number; served: number };
+
+/** §5.2, checks 1–5; returns the instants check 1 found, which the time rule reads (`checkTimes`). */
+function checkReceipt(acq: Acquisition, profile: Profile, request: JObj, who: string): Times {
   const invalid = (why: string): never => finding("acquisition-invalid", `${who}: ${why}`);
   const E = acq.receipt;
-  const s = (k: string, v: JVal | undefined = E.m.get(k)) => (v !== undefined && v.t === "str" ? v.v : null);
+  const stringOf = (v: JVal | undefined) => (v !== undefined && v.t === "str" ? v.v : null);
+  const s = (k: string) => stringOf(E.m.get(k));
   // 1. the receipt's version and kind, and the form of each member this list reads
   if (s("receiptVersion") !== "3" || s("kind") !== "acquisition") invalid("not a version-3 acquisition receipt");
   const keyId = s("keyId");
@@ -254,6 +259,18 @@ function checkReceipt(acq: Acquisition, profile: Profile, request: JObj, who: st
   if (acquisition === undefined || acquisition.t !== "obj") invalid("acquisition is not an object");
   // a receipt that attests a page is not read, whatever the shape
   if (member(acquisition, "pageItems") !== undefined) invalid("the receipt attests a page (pageItems)");
+  // the members the time and session rules read (round 9, issue #182 item 4): each time a string with an instant (§1),
+  // `callIndex` an integer at least zero, `sessionId` a string not held to the gateway's token form; a member of another
+  // type or form makes the receipt malformed, before the time and session rules
+  // (`acquisition.observedAt` is read in `acquisition` alone: a top-level `observedAt` is another member)
+  const served = s("servedAt");
+  const observed = stringOf(member(acquisition, "observedAt"));
+  const times = { served: served === null ? null : instant(served), observed: observed === null ? null : instant(observed) };
+  if (times.served === null) invalid("servedAt is not a timestamp with an instant");
+  if (times.observed === null) invalid("acquisition.observedAt is not a timestamp with an instant");
+  const callIndex = E.m.get("callIndex");
+  if (!isInteger(callIndex) || intValue(callIndex) < 0) invalid("callIndex is not an integer at least zero");
+  if (s("sessionId") === null) invalid("sessionId is not a string");
   for (const k of ["argumentsCommitment", "resultDigest"]) if (!DIGEST.test(s(k) ?? "")) invalid(`${k} is not a digest`);
   // 2. the key and the signature
   if (keyId !== sha256hex(profile.key).slice(0, 32)) invalid("keyId is not the profile key's identifier");
@@ -280,16 +297,15 @@ function checkReceipt(acq: Acquisition, profile: Profile, request: JObj, who: st
   // 5. the result's digest
   if (!inCanonDomain(acq.result)) invalid("the result is outside the canon domain");
   if (s("resultDigest") !== digestOf(acq.result)) invalid("resultDigest is not the result's");
+  return times as Times;
 }
 
 /** §5.2, the sessions: a receipt joins the preparation's receipts so far, which must stay in one of the two forms; its
- * citation is returned. */
+ * citation is returned. Check 1 held its `callIndex` and `sessionId` to their forms (`checkReceipt`), so
+ * `acquisition-sessions` names only a well-formed session set that fails the rule. */
 function joinSessions(E: JObj, sessions: { sessionId: string; callIndex: number }[], who: string): JObj {
   const callIndex = E.m.get("callIndex");
   const sessionId = E.m.get("sessionId");
-  if (!isInteger(callIndex) || intValue(callIndex) < 0 || sessionId === undefined || sessionId.t !== "str") {
-    finding("acquisition-sessions", `${who}: callIndex or sessionId is not of its form`);
-  }
   sessions.push({ sessionId: (sessionId as JStr).v, callIndex: intValue(callIndex as never) });
   if (!inOneForm(sessions)) finding("acquisition-sessions", `${who}: the acquisitions so far are in neither form`);
   return obj([["callIndex", callIndex!], ["sessionId", sessionId!], ["signature", E.m.get("signature")!]]);
@@ -348,15 +364,13 @@ function acquireResearch(
     if (result === undefined) return finding("acquisition-missing", `${who} has no result`);
     const profile = profiles.find((p) => p.id === (member(retained.m.get("profile"), "id") as JStr).v)!;
     const held: Acquisition = { result, receipt: retained.m.get("receipt") as JObj, salts: retained.m.get("salts") as JObj, own: true };
-    checkReceipt(held, profile, retained.m.get("request") as JObj, who);
-    checkTimes(held.receipt, s.maxAge!, at, who);
+    checkTimes(checkReceipt(held, profile, retained.m.get("request") as JObj, who), s.maxAge!, at, who);
     citations.push(joinSessions(held.receipt, sessions, who));
   });
   if (!inCanonDomain(acq.result)) finding("acquisition-invalid", `${s.name}: the research record is outside the canon domain`);
   if (acq.own) {
     const who = `${s.name}: the research record's own receipt`;
-    checkReceipt(acq, ai, request, who);
-    checkTimes(acq.receipt, s.maxAge!, at, who);
+    checkTimes(checkReceipt(acq, ai, request, who), s.maxAge!, at, who);
     outcome.citation = joinSessions(acq.receipt, sessions, who);
     citations.push(outcome.citation);
   }
@@ -386,10 +400,11 @@ function researchClaim(s: Source, outcome: Outcome, outcomes: Outcome[]): Claim 
   return s.read.copy ? applyCopy(s.read.copy, value, s.name) : applyRule(s.read.rule!, value, outcome.scope, s.name);
 }
 
-function checkTimes(E: JObj, maxAge: number, at: number, who: string): void {
-  for (const v of [member(E.m.get("acquisition"), "observedAt"), E.m.get("servedAt")]) {
-    const t = v !== undefined && v.t === "str" ? instant(v.v) : null;
-    if (t === null || t < at - maxAge || t > at + 30) finding("acquisition-stale", `${who}: a time is outside the source's window`);
+/** §5.2, the times: the instants check 1 found present (`checkReceipt`), so `acquisition-stale` names only one
+ * outside the window. */
+function checkTimes(times: Times, maxAge: number, at: number, who: string): void {
+  for (const t of [times.observed, times.served]) {
+    if (t < at - maxAge || t > at + 30) finding("acquisition-stale", `${who}: a time is outside the source's window`);
   }
 }
 
@@ -562,8 +577,7 @@ export function recompute(d: Dialect, caseDoc: JVal, acquisitions: Map<string, A
     commitments(s.template!, outcome.committed, outcome.ambiguous);
     const acq = acquisitions.get(s.name);
     if (acq === undefined) return finding("acquisition-missing", `${s.name} has no acquisition`);
-    checkReceipt(acq, profile, request, s.name);
-    checkTimes(acq.receipt, s.maxAge!, at, s.name);
+    checkTimes(checkReceipt(acq, profile, request, s.name), s.maxAge!, at, s.name);
     outcome.citation = joinSessions(acq.receipt, sessions, s.name);
 
     const value = valueRead(acq.result, s.read.unwrap, s.name);
