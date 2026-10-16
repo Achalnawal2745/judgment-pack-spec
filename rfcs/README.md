@@ -69,9 +69,11 @@ stable feature requires two independent implementations and conformance cases.
 | [0018](0018-dialect.md) | The dialect — how a pack's facts and evidence are obtained and derived, and what a preparation establishes per part | Accepted | Specification (a companion document beside Core, [`spec/dialect.md`](../spec/dialect.md), with a preparation-verifier class; the reference Runner's 38 preparation vectors are staged for the next `specVersion`, in no corpus; amended 2026-10-15: every gateway source shape in version 2, the unbound source form in version 3, version 3 as the reference Runner reads it; 2026-10-16: the name an unbound operation's record carries, the research vectors staged) |
 | [0019] | The Judgment Exchange — a shared place for dialects | Draft | Research line (see below) |
 | [0020] | The workflow | Draft | Specification (a proposed companion document; see below) |
+| [0022] | Reusable subgraphs contract — explicit encapsulation and reference binding | Draft | Research line (see below) |
 
 [0019]: 0019-exchange.md
 [0020]: 0020-workflow.md
+[0022]: 0022-reusable-subgraphs.md
 
 RFC 0019 is a cross-project record outside the specification: a catalog's entry format,
 manifest, tests and contribution rules, and a desk's browse. Amended 2026-10-15 for
