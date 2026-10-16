@@ -228,6 +228,19 @@ here.
 
 ### Changed
 
+- [RFC 0019](rfcs/0019-exchange.md) stays a Draft and records issue #192, option A: entry format
+  version 3 carries checked named-format references and `artifact: {id, version}` under RFC 0021.
+  Integer references and kind rules remain; presets stay integer-only. Named identity includes
+  the whole canonical document. Changed canonical content under an existing pair is refused
+  within a release and across catalog history; identical content is admitted in another entry
+  under its kind's rules. Catalog CI fetches tags and reads every previous release's manifest and
+  pinned entries as blobs, refusing unreadable history as `artifact-history-invalid`, with no
+  form-only fallback. Only a consumer checks form alone when it does not hold the previous
+  manifest, reporting `artifact-history-unchecked`.
+  Manifest rows are unchanged and upgrade keys remain released entry digests. Reader compatibility,
+  publication and binding limits, and catalog and consumer test duties are recorded. The checker
+  and fixtures follow in their own pull request on `judgment-pack-exchange`; the Desk's publication
+  flow remains separate work. No Core, companion document or conformance corpus changes.
 - [RFC 0018](rfcs/0018-dialect.md), round 10 (issue #184): the `record` of an unbound `operation`
   source names the program, as a profile's `adapter.name` and the gateway's receipt carry it, and
   never a catalog's result-contract name. [`spec/dialect.md`](spec/dialect.md) §4.4 gains the
