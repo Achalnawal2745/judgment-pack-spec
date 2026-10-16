@@ -12,7 +12,7 @@ Its design record is [RFC 0018](../rfcs/0018-dialect.md), accepted on 2026-10-15
 which is informative; its Specification section, §§1–14 below, is that text. The comment period
 RFC 0000 names was waived by the maintainer, as the RFC's adoption record says.
 
-Its thirty-eight vectors, under
+Its thirty-nine vectors, under
 [`conformance/dialect/`](https://github.com/Judgment-Pack/judgment-pack-spec/tree/main/conformance/dialect),
 are the reference Runner's `vectors/preparation/`, byte for byte: nine at commit
 `05636eda96a9588279d61a6272625be859a28117` (Runner pull request 77), which reached the Runner's
@@ -24,8 +24,11 @@ are the reference Runner's `vectors/preparation/`, byte for byte: nine at commit
 `v0.12.0`), which holds the ten unchanged; and the twenty-six research vectors, the first of the
 kind `research`, the runs of §11's two examples, at the Runner's `main` commit
 `4352763e22489ca80ffbf5df338b7e7cb61319e2` (Runner pull request 97, not yet released), which holds
-the twelve unchanged. They are **staged** until the next
-`specVersion` opens: they are in no corpus, no claim may cite them, the site does not serve them,
+the twelve unchanged; and the thirty-ninth, `skipped-source-dependency-unavailable`, at the Runner's
+`main` commit `ed1bc2a7a02b7475e96178915c36df412e536314` (Runner pull request 105), which holds
+the thirty-eight unchanged.
+They are **staged** until the next `specVersion` opens: they are in no corpus, no claim may cite
+them, the site does not serve them,
 and no release bundle carries them. When that version opens they move into a corpus, normative for
 this class and for nothing else. Until a specification version publishes them, no
 preparation-verifier conformance claim is available: §14 holds a verifier to the vectors published
@@ -35,8 +38,9 @@ It specifies version 2 of the dialect document and of the preparation, which are
 mapping v2 and its preparation, restated. Since the amendment of 2026-10-15 (RFC 0018, its
 Amendment), version 2's `operation` reads a gateway source of shape `airbyte`, `mcp` or `http`, as
 the Runner's mapping v2 does since its pull request 80: the vectors of version 2 hold `mcp`, in
-nine, and `http`, in the tenth, and `airbyte` is defined and not claimable (§4.1). That amendment is a
-compatible extension of the record kind to every adapter shape, and one restriction: a receipt that
+nine and the thirty-ninth, and `http`, in the tenth; `airbyte` is defined and not claimable (§4.1).
+That amendment is a compatible extension of the record kind to every adapter shape, and one
+restriction: a receipt that
 attests a page (`pageItems`) is refused, whatever the shape (§5.2). The restriction changes one
 answer the accepted text gave: a signed acquisition of shape `mcp` whose receipt carried
 `pageItems` was read, and is `acquisition-invalid` now. The Runner has never prepared a paged
@@ -59,6 +63,13 @@ each recomputes a preparation with a `research` source, and the two agree on eve
 document of the contract's forms and refusals, and on the twenty-six vectors, which the Runner
 recorded after both readers were written, neither reader changed to read them. The two readers'
 agreement is one author's, and no claim rests on it.
+
+The skipped-source amendment of 2026-10-16 (issue #189, option A, RFC 0018 round 12) takes the
+Runner's form in §§9.2–9.3: a skipped outcome keeps its claim and status `unknown`, and each of
+its lineage entries has status `unknown` and names every declared source parameter in
+`dependencies`. Both readers follow; the thirty-ninth vector holds the form. A reader of the
+accepted text answered `preparation-differs` on the Runner's skipped-source bytes and now gives
+a reading, and the old form now gives `preparation-differs`.
 
 The named-artifact amendment (RFC 0021, §2.1) adds exact format selectors `2.0.0` and `3.0.0`
 with independent artifact identities. It preserves both integer formats and all historical vectors.
@@ -315,7 +326,7 @@ A source is an object with these members, and those its kind adds:
 | `parameters` | an object of source parameters (§3), optional | |
 | `read` | a read (§6), REQUIRED | how the value acquired becomes a claim |
 
-The kinds:
+The kinds (the class a binding takes follows §5.1):
 
 | Kind | Version | Class | What is declared | Vectors |
 | --- | --- | --- | --- | --- |
@@ -323,7 +334,7 @@ The kinds:
 | `selected-file` | 2 | `asserted` for `local-file`, the profile's for `google-drive` | a document the operator selected (§4.2) | none |
 | `http` | 3, proposed | the profile's | a request to a gateway HTTP source: method, path, query and body templates, header names (§4.3) | none |
 | `sql` | 3, proposed | the profile's | a statement on a connection, with its bound parameters (§4.3) | none |
-| `web` | 3, proposed | the profile's | a public page by URL, through the gateway's web source (§4.3) | none |
+| `web` | 3, proposed | `record` (§5.1) | a public page by URL through the gateway (§4.3) | none |
 | `research` | 3, proposed | `generated` | a recipe (§4.3), also unbound (§4.4) | none |
 
 A version-2 document that names a kind of version 3, or has an unbound source (§4.4), is refused.
@@ -448,6 +459,8 @@ their own profiles pin, as below. The value acquired is read as every value is (
 - **`web`**, one public page by URL through the gateway's web source (`adapter-web`, shape
   `http`): `url`, a string, or a `$param` form naming a `string` parameter. The request is
   `{"url": url}`, and the value acquired is the attachment record the web source returns.
+  Its first reader must hold §5.1's class check, including its refusal; a vector of that refusal
+  waits for a Runner that prepares this kind. (No vector decides this.)
 - **`research`**, an AI-assisted research recipe, of class `generated`. Besides §4's members,
   `maxAge` and its profile assignments (§4.4), it has exactly `question`, a string template;
   `constraints`, an object in the `canon` domain; `model`, a non-empty string of at most 256 UTF-8
@@ -483,10 +496,9 @@ their own profiles pin, as below. The value acquired is read as every value is (
   present beside `result` in that `response` when `R` came back through a gateway source, and
   absent otherwise. Membership and order in `responses` are the caller's assertion: verification
   uses `R`'s order and does not establish that assertion (§13). A page cited by URL alone is no
-  retained response; the claim it supports is the answer's say. A profile of another class is
-  `profile-mismatch` (§5.1). The kind is defined, and not claimable: its vectors are staged (§11,
+  retained response; the claim it supports is the answer's say. Section 5.1 gives the class check
+  and its finding. The kind is defined, and not claimable: its vectors are staged (§11,
   §14).
-  (No vector decides this.)
 
 **Requested fields.** A research source's `fields` is an ordered array of 1 to 64 closed objects,
 each exactly `{"name", "type", "required", "description"}`. `name` has §4's source-name form: a
@@ -596,7 +608,7 @@ Its bound form adds all three members. `profile` and `profileDigest`, as in §4.
 profile for `answer`. `webProfiles` is a closed object with exactly the `search` and `page`
 capabilities the source requests as keys; each value is exactly `{"profile", "profileDigest"}`,
 of those same forms. It has zero to two members and is REQUIRED even when empty. One profile may
-serve more than one capability; every assigned profile is of class `generated`. A source with
+serve more than one capability, subject to §5.1's class rule. A source with
 only some of the three binding members, or any operation catalog member, is `input-malformed`.
 The new required members stay written when empty; §2's one-spelling rule is unchanged.
 
@@ -640,9 +652,9 @@ bound dialect.
 
 The binding checks of §5.1 hold research too, including a bound dialect given directly. Its AI
 profile MUST declare the exact `model` and capability `answer`; each assigned web profile MUST
-declare the capability it serves. Every assigned profile MUST be `generated`; a profile that
-declares a model MUST name the source's model. A missing profile, digest mismatch, missing
-research declaration, wrong model, missing capability or wrong class is `profile-mismatch`.
+declare the capability it serves. A profile that declares a model MUST name the source's model.
+A missing profile, digest mismatch, missing research declaration, wrong model or missing capability
+is `profile-mismatch`; §5.1 gives the class check and its finding.
 Extra or missing assignment members, a capability assigned twice, or an assignment for an
 unrequested capability is `input-malformed`. No substitution of another model is implicit.
 
@@ -665,8 +677,8 @@ digest, including all AI and web profile ids and digests, the model, capabilitie
 read. Neither the published digest nor the binding-document digest is added to §9.1. Rebinding
 one assignment changes the bound digest. Replay uses the profiles then bound and the retained
 bytes, never a live connection or a new model answer; it establishes no answer's correctness
-(§13). The reference Runner still refuses `research` by name. No research binding or result
-vector is recorded. (No vector decides this.)
+(§13). The reference Runner prepares `research` since its pull request 97; twenty-six research
+vectors are staged.
 
 ## 5. Input profiles and acquisitions
 
@@ -696,12 +708,24 @@ when they include `answer`, `model`. `capabilities` is a non-empty array of dist
 `answer`, `search`, `page`, in that order, at most three; `model` has §4.3's form. Web-only
 profiles name no model. This whole declaration enters the profile digest. Malformed members
 are `input-malformed`; a well-formed profile without the declaration or with unsuitable
-capabilities, model or class is `profile-mismatch` when bound to research (§4.4). This extension
+capabilities or model is `profile-mismatch` when bound to research (§4.4). This extension
 changes no operation binding check and makes no claim about model weights or execution.
 
-A profile bound to a research source's capability serves the model's answer and is classed
-`generated` for that binding. The same gateway web source bound to a `web` source is `record`;
-its profile for that binding carries that class.
+A profile's `class` is the profile's own; a binding takes it only where the source's kind admits
+that class. An `operation`, of any shape §4.1 admits, takes its profile's class, `record` or
+`generated`, as do the `http` and `sql` kinds (§4). `local-file` is `asserted` and has no profile
+(§4.2). For the file kinds, see §4's table and §4.2. The Vectors column of §4's table says which
+bindings the staged vectors hold.
+
+For a `research` source, the profile assigned to `answer` serves the model's answer; a profile
+assigned to `search` or `page` serves the web reads retained with the answer — the links found,
+the pages read — which the record retains as its retained responses (§§4.3, 5.2). Every capability
+binding takes `generated`; assigning a profile of class `record` to `answer`, `search` or `page`
+is `profile-mismatch`. (No vector decides the refusal: the research vectors bind only
+`generated` profiles.)
+
+A `web`-kind source (§4.3) requires a profile of class `record`; the binding is `record`, and a
+profile of class `generated` bound to it is `profile-mismatch`. (No vector decides this.)
 
 A profile is the installation's, never the dialect's: a dialect names a profile by its `id` and its
 digest, and only an installation supplies one. A verifier is given the profiles it trusts, out of
@@ -715,8 +739,8 @@ whose request does not fit its profile's shape and adapter (§4.1), under a prof
 
 Each retained response of a `research` source names its own trusted profile by `profile.id` and
 `profile.digest` (§4.3). That id MUST be among the profiles given out of band, and its digest MUST
-match. The pair MUST be the source's AI assignment or one of its web assignments, each of class
-`generated`; otherwise `profile-mismatch`. The reference in the response supplies neither a
+match. The pair MUST be the source's AI assignment or one of its web assignments, with the class
+required above; otherwise `profile-mismatch`. The reference in the response supplies neither a
 profile nor a key. The source's profile does not substitute for a retained response's profile.
 
 What a profile pins — the gateway's key, source, authority, adapter, shape, endpoint, class, tools
@@ -1041,9 +1065,10 @@ an evaluation takes (Core §8.2), and those its record carries (§11).
 
 ### 8.2 Classes and admission
 
-A target's **class** is its source's: `asserted` for the case and a local file, the profile's for
-every other source. `record` names the acquisition channel, a signed read of a system, and not the
-authorship or truth of every byte the system holds; `generated` names a model's answer.
+A target's **class** is its source's: `asserted` for the case and a local file; for every other
+source, the binding's class under §5.1's rule for its kind. `record` names the acquisition channel,
+a signed read of a system, and not the authorship or truth of every byte the system holds;
+`generated` names a model's answer.
 
 A source's **generated influence** is true when its class is `generated`, or when a source parameter
 it declares comes from a source whose generated influence is true; each of its targets carries it.
@@ -1092,17 +1117,19 @@ its read does not apply. An outcome is an object of:
 - `parameters`: an object giving each parameter of the scope (§3), `runAt` included, its value, with
   the literal the case or the earlier source wrote; for a skipped source, those that have a value;
 - `arguments`: the source's request (§4.1), for a source acquired, and absent otherwise;
-- `claim`: the claim (§§6–7), and absent for a skipped source;
-- `status`: the claim's `acquisitionStatus`, or `dependency-unavailable` for a skipped source;
-- `reason`: the claim's `reason`, or `dependency-unavailable` for a skipped source.
+- `claim`: the claim (§§6–7); for a skipped source, the object of exactly `acquisitionStatus`
+  `"unknown"`, `basis` `[]`, `evidenceAvailability` `{}`, `facts` `{}` and `reason`
+  `"dependency-unavailable"`, giving no fact and no availability;
+- `status`: the claim's `acquisitionStatus`, so `unknown` for a skipped source;
+- `reason`: the claim's `reason`, so `dependency-unavailable` for a skipped source.
 
-(No vector holds a skipped source, so none decides the form of its outcome or its entries.)
+The vector `skipped-source-dependency-unavailable` holds this form.
 
 ### 9.3 Lineage
 
 There is one lineage entry for each target of the case and of each source, in the order of the
 outcomes; within one outcome, its fact targets ordered by code point, then its evidence targets
-ordered by code point. (No vector decides the order within one outcome.) An entry is an object of:
+ordered by code point. (No vector decides facts before evidence.) An entry is an object of:
 
 | Member | Value |
 | --- | --- |
@@ -1114,6 +1141,7 @@ ordered by code point. (No vector decides the order within one outcome.) An entr
 | `present` | `true` when the claim gives the target a value — a value at the pointer, or any availability for the requirement — and `false` otherwise |
 | `status`, `reason` | the outcome's |
 | `basis` | the claim's `basis`, or `[]` for a skipped source |
+| `dependencies` | the source's declared source parameters, as below, for every source that declares one, acquired or skipped; absent for the case, a local file and a source that declares none |
 | `candidateFrom` | the pointers of the value read that the dialect could copy to the target, distinct, ordered by code point: a copy entry's `source`, or each `from` of a claim form that writes the target; absent when there is none, as for a rule's evidence target |
 | `readDigest` | the read digest (§6) |
 | `receipt` | the acquisition's citation; for `research`, the record's own citation when it has one; absent for the case, a local file, a skipped source and a research record with no receipt of its own |
@@ -1122,6 +1150,16 @@ ordered by code point. (No vector decides the order within one outcome.) An entr
 
 `candidateFrom` lists what the dialect could read into a target, and not what was read; `basis`
 lists what was read to decide.
+
+`dependencies` is present on every target entry of a source that declares a source parameter,
+acquired or skipped. It is an array of every source parameter the source declares (§3),
+including those that have a value, ordered by `parameter` by code point. Each element is an
+object of exactly `parameter`, the parameter's name; `source`, the earlier source's name; and
+`pointer`, the fact target read. In
+`skipped-source-dependency-unavailable`, both `approver` from `sponsor` and `requestType` from
+`intake` appear, in that order, though `requestType` has a value and `intake` is the first source.
+An acquired source whose parameters all have values carries them too, including one whose
+claim is `unknown`.
 
 ### 9.4 What derives a preparation
 
@@ -1258,6 +1296,13 @@ The staging manifest gives `requiresBinding` and the expected answer, `expectedR
 The fixture layout is fixed. The reference Runner prepares the `research` kind since its pull
 request 97, and twenty-six fixtures it recorded in this layout are staged; the kind is defined,
 and not claimable until a specification version publishes them (§14).
+
+The thirty-ninth vector, `skipped-source-dependency-unavailable`, recorded in Runner pull request
+105 at commit `ed1bc2a`, holds §§9.2–9.3's skipped-source form. Its three sources are operations:
+`intake` resolves, `sponsor` is acquired but unknown, and `endorsement` is skipped because its
+`approver` parameter has no value. It gives a reading with binding `matches`; its preparation
+recomputes byte for byte. This holds the common skipped-source form; item 5's recording of a
+skipped earlier research source in a reconciliation remains to be recorded.
 
 **The two fixture lists to record.** Each reading or finding variant below calls for a separate
 fixture directory in that layout for each of two examples, named `<example>-<item>-<variant>`.

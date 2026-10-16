@@ -22,6 +22,106 @@ import type { Inputs } from "../src/verify.ts";
 const VECTORS = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "conformance", "dialect", "vectors");
 const text = (b: Uint8Array) => Buffer.from(b).toString("utf8");
 
+test("§9.2 and §9.3: a skipped source keeps its claim and every declared dependency", () => {
+  const dir = join(VECTORS, "skipped-source-dependency-unavailable");
+  const inputs = loadVector(dir, true);
+  const result = verify(inputs);
+  assert.deepEqual(Buffer.from(result.recomputed!), readFileSync(join(dir, "preparation.json")));
+  assert.equal(result.kind, "reading");
+  assert.equal((member(result.report, "binding") as { v: string }).v, "matches");
+  const preparation = JSON.parse(text(result.recomputed!));
+  assert.deepEqual(preparation.outcomes.at(-1), {
+    name: "endorsement",
+    parameters: { requestId: "REQ-7", requestType: "data-access", runAt: preparation.verifiedAt },
+    claim: { acquisitionStatus: "unknown", basis: [], evidenceAvailability: {}, facts: {},
+      reason: "dependency-unavailable" },
+    status: "unknown", reason: "dependency-unavailable",
+  });
+  const dependencies = [
+    { parameter: "approver", source: "sponsor", pointer: "/sponsor/id" },
+    { parameter: "requestType", source: "intake", pointer: "/intake/type" },
+  ];
+  const skipped: string[] = [];
+  for (const entry of preparation.lineage) {
+    if (entry.source !== "endorsement") {
+      assert.ok(!("dependencies" in entry));
+      continue;
+    }
+    skipped.push(entry.target);
+    assert.deepEqual(entry.dependencies, dependencies);
+    assert.deepEqual([entry.status, entry.reason, entry.present, entry.basis],
+      ["unknown", "dependency-unavailable", false, []]);
+    for (const member of ["receipt", "receipts", "calculation"]) assert.ok(!(member in entry));
+  }
+  assert.deepEqual(skipped, ["/endorsement", "sponsor-endorsement"]);
+  assert.equal(preparation.cites.length, 2);
+  // Declaration order does not change parameter-name order, or omit the parameter with a value.
+  const dialect = JSON.parse(text(inputs.dialect));
+  const source = dialect.sources.at(-1);
+  source.parameters = Object.fromEntries(Object.entries(source.parameters).reverse());
+  const reversed = verify({ ...inputs, dialect: utf8(JSON.stringify(dialect)) });
+  assert.deepEqual(reversed.recomputed, result.recomputed);
+  assert.equal(reversed.kind, "reading");
+});
+
+test("§9.3: an acquired source keeps every declared dependency", () => {
+  for (const resolved of [true, false]) {
+    const base = loadVector(join(VECTORS, "skipped-source-dependency-unavailable"), false);
+    const document = JSON.parse(text(base.dialect));
+    const source = document.sources.at(-1);
+    source.parameters = Object.fromEntries(Object.entries(source.parameters).reverse());
+    const sources = JSON.parse(text(base.acquisitions));
+    const sponsor = sources.sponsor.response;
+    sponsor.result.sponsor = { id: "S-1" };
+    const endorsement = structuredClone(sponsor);
+    endorsement.result = { approver: "S-1", requestType: "data-access" };
+    if (resolved) endorsement.result.endorsement = { approved: true };
+    const canonical = (value: unknown) => canon(parse(JSON.stringify(value)));
+    const digest = (bytes: Uint8Array) =>
+      "sha256:" + createHash("sha256").update(bytes).digest("hex");
+    const request = { tool: "lookup", arguments: {
+      table: "endorsements", approver: "S-1", requestType: "data-access",
+    } };
+    endorsement.receipt.callIndex = 2;
+    endorsement.receipt.argumentsCommitment = digest(Buffer.concat([
+      Buffer.from(endorsement.salts.args, "hex"), Buffer.from("args:"), canonical(request),
+    ]));
+    for (const response of [sponsor, endorsement]) {
+      response.receipt.resultDigest = digest(canonical(response.result));
+    }
+    sources.endorsement = { response: endorsement };
+    const inputs = alteredAndSigned({
+      ...base, dialect: canonical(document), acquisitions: canonical(sources),
+      record: undefined, requireBinding: false,
+    }, {});
+    const result = verify(inputs);
+    assert.ok(result.recomputed, text(preparationForm(result.report)));
+    const preparation = JSON.parse(text(result.recomputed));
+    assert.equal(preparation.outcomes.at(-2).status, "resolved");
+    const outcome = preparation.outcomes.at(-1);
+    assert.equal(outcome.status, resolved ? "resolved" : "unknown");
+    assert.equal(outcome.parameters.approver, "S-1");
+    assert.equal(outcome.parameters.requestType, "data-access");
+    assert.deepEqual(outcome.arguments, request);
+    const targets: string[] = [];
+    for (const entry of preparation.lineage) {
+      if (entry.source !== "endorsement") {
+        assert.ok(!("dependencies" in entry));
+        continue;
+      }
+      targets.push(entry.target);
+      assert.deepEqual(entry.dependencies, [
+        { parameter: "approver", source: "sponsor", pointer: "/sponsor/id" },
+        { parameter: "requestType", source: "intake", pointer: "/intake/type" },
+      ]);
+      assert.equal(entry.status, outcome.status);
+      assert.ok("receipt" in entry);
+    }
+    assert.deepEqual(targets, ["/endorsement", "sponsor-endorsement"]);
+    assert.equal(verify({ ...inputs, preparation: result.recomputed }).kind, "reading");
+  }
+});
+
 test("§9.5 writes &, <, >, U+2028 and U+2029 escaped and keeps -0; canon writes them as they are and -0 as 0", () => {
   const v = obj([["s", str("A&B <x> café ☃  /\u007f\u001f\n")], ["z", num("-0")], ["big", num("-9007199254740991")]]);
   assert.equal(text(preparationForm(v)), '{"big":-9007199254740991,"s":"A\\u0026B \\u003cx\\u003e café ☃\\u2028\\u2029/\u007f\\u001f\\n","z":-0}');

@@ -7,6 +7,9 @@ here.
 
 ### Added
 
+- The thirty-ninth dialect vector, `skipped-source-dependency-unavailable`, from Runner commit
+  `ed1bc2a`, pull request 105, staged byte for byte beside the thirty-eight unchanged vectors.
+  The vectors remain staged until the next `specVersion` opens, in no corpus.
 - The reference Runner's twenty-six research vectors, the first of the kind `research`, are staged
   byte for byte in [`conformance/dialect/`][staged-dialect] beside the twelve, from the Runner's
   pull request 97 (issue #190): the runs of the two examples of [`spec/dialect.md`](spec/dialect.md)
@@ -228,6 +231,37 @@ here.
 
 ### Changed
 
+- RFC 0018 and its companion record issue #195 (2026-10-16, round 13): §5.1 states which class
+  a binding takes, by kind, with references from §§4, 4.4 and 8.2. An `operation` of any admitted
+  shape takes its profile's class; research capability bindings take `generated`, and `web`
+  bindings take `record`. A profile of the other class on a research or `web` binding is
+  `profile-mismatch`; the `web` refusal is named for the first time, with no vector deciding it.
+  The research `answer` profile serves the model's answer; `search` and `page` profiles serve
+  the web reads retained with the answer — the links found, the pages read — in the research
+  record. The readers are unchanged, and no vector is changed or claimed; the `web` refusal's
+  vector waits for a Runner of that kind.
+- RFC 0018 and its companion record issue #189, option A (2026-10-16, round 12): a skipped
+  source's outcome keeps its five-member claim and status `unknown`; each of its lineage entries
+  has status `unknown`. Every source that declares a source parameter, acquired or skipped,
+  carries `dependencies`, all declared source parameters in parameter-name order, including those
+  that have a value (§§9.2–9.3); the member is absent for the case, a local file and a source that
+  declares none. Both readers follow, recompute the thirty-ninth vector's preparation byte for
+  byte and give a reading whose binding `matches`. A reader of the accepted text answered
+  `preparation-differs` on the Runner's skipped-source bytes and now gives a reading, and the old
+  form now gives `preparation-differs`. The Runner is unchanged.
+- [RFC 0019](rfcs/0019-exchange.md) stays a Draft and records issue #192, option A: entry format
+  version 3 carries checked named-format references and `artifact: {id, version}` under RFC 0021.
+  Integer references and kind rules remain; presets stay integer-only. Named identity includes
+  the whole canonical document. Changed canonical content under an existing pair is refused
+  within a release and across catalog history; identical content is admitted in another entry
+  under its kind's rules. Catalog CI fetches tags and reads every previous release's manifest and
+  pinned entries as blobs, refusing unreadable history as `artifact-history-invalid`, with no
+  form-only fallback. Only a consumer checks form alone when it does not hold the previous
+  manifest, reporting `artifact-history-unchecked`.
+  Manifest rows are unchanged and upgrade keys remain released entry digests. Reader compatibility,
+  publication and binding limits, and catalog and consumer test duties are recorded. The checker
+  and fixtures follow in their own pull request on `judgment-pack-exchange`; the Desk's publication
+  flow remains separate work. No Core, companion document or conformance corpus changes.
 - [RFC 0018](rfcs/0018-dialect.md), round 10 (issue #184): the `record` of an unbound `operation`
   source names the program, as a profile's `adapter.name` and the gateway's receipt carry it, and
   never a catalog's result-contract name. [`spec/dialect.md`](spec/dialect.md) §4.4 gains the

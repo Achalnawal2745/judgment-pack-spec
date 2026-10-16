@@ -18,7 +18,7 @@ the companion document [`spec/checkpoint-witness.md`](../spec/checkpoint-witness
 directory. Its vectors are staged, as RFC 0013's rows are, until a later `specVersion` opens.
 [RFC 0018](0018-dialect.md) is accepted in the same form: the normative statement of the dialect and
 its preparation verifier is the companion document [`spec/dialect.md`](../spec/dialect.md), not this
-directory, and its thirty-eight vectors are staged until a later `specVersion` opens; it was amended
+directory, and its thirty-nine vectors are staged until a later `specVersion` opens; it was amended
 in place on 2026-10-15 and 2026-10-16, its status unchanged.
 [RFC 0014](0014-lineage-record-and-action-binding.md) is the first accepted cross-project record,
 and a retrospective one: the gateway's `SPEC.md` and the runtime's decision records govern what it
@@ -66,21 +66,39 @@ stable feature requires two independent implementations and conformance cases.
 | [0015](0015-reported-receipts.md) | What a reported receipt would have to specify — the engine signing a call it did not make | Draft | Research line (cross-project artifact: gateway receipt format, verifier and surface; a reporting plugin in an MCP gateway; outside the specification) |
 | [0016](0016-outcome-values.md) | Outcome values — a decision that states a quantity | Draft | Specification (a specification-defined extension, or Core — undecided) |
 | [0017](0017-checkpoint-witness-statement.md) | The checkpoint witness statement | Accepted | Specification (a companion document beside Core, [`spec/checkpoint-witness.md`](../spec/checkpoint-witness.md), with a reader conformance class; its 54 vectors, the reference gateway's bytes, are staged for the next `specVersion`, in no corpus) |
-| [0018](0018-dialect.md) | The dialect — how a pack's facts and evidence are obtained and derived, and what a preparation establishes per part | Accepted | Specification (a companion document beside Core, [`spec/dialect.md`](../spec/dialect.md), with a preparation-verifier class; the reference Runner's 38 preparation vectors are staged for the next `specVersion`, in no corpus; amended 2026-10-15: every gateway source shape in version 2, the unbound source form in version 3, version 3 as the reference Runner reads it; 2026-10-16: the name an unbound operation's record carries, the research vectors staged) |
+| [0018] | The dialect | Accepted | Specification (a companion document; see below) |
 | [0019] | The Judgment Exchange — a shared place for dialects | Draft | Research line (see below) |
 | [0020] | The workflow | Draft | Specification (a proposed companion document; see below) |
 | [0022] | Reusable subgraphs contract — explicit encapsulation and reference binding | Draft | Research line (see below) |
 
+[0018]: 0018-dialect.md
 [0019]: 0019-exchange.md
 [0020]: 0020-workflow.md
 [0022]: 0022-reusable-subgraphs.md
+
+RFC 0018 states how a pack's facts and evidence are obtained and derived, and what a preparation
+establishes per part. Its companion, [`spec/dialect.md`](../spec/dialect.md), defines the
+preparation-verifier class; the reference Runner's 39 preparation vectors are staged for the next
+`specVersion`, in no corpus. It was amended on 2026-10-15 for every gateway source shape in version
+2, the unbound source form in version 3 and version 3 as the reference Runner reads it; on
+2026-10-16 for the name an unbound operation's record carries, the research vectors staged and the
+skipped source's form.
 
 RFC 0019 is a cross-project record outside the specification: a catalog's entry format,
 manifest, tests and contribution rules, and a desk's browse. Amended 2026-10-15 for
 [issue #166](https://github.com/Judgment-Pack/judgment-pack-spec/issues/166) and
 [issue #172](https://github.com/Judgment-Pack/judgment-pack-spec/issues/172): entry version 2
 distinguishes kind `dialect` from pack-free kind `preset`; the seven enforcement
-sentences are settled. A hosted registry remains out of scope (Unresolved question 4).
+sentences are settled. Amended 2026-10-16 for
+[issue #192](https://github.com/Judgment-Pack/judgment-pack-spec/issues/192), option A: entry
+version 3 checks named-format references and artifact identities under RFC 0021, with immutable
+pairs across catalog history and unchanged manifest rows. Catalog CI fetches tags and reads every
+previous release's manifest and pinned entries as blobs, refusing unreadable history as
+`artifact-history-invalid`, with no form-only fallback. Only a consumer checks form alone when
+it does not hold the previous manifest, reporting `artifact-history-unchecked`. Identical content
+under a pair is admitted in another entry under its kind's rules; presets stay integer-only.
+The catalog's checker and fixtures follow in their own pull request on `judgment-pack-exchange`.
+RFC 0019 stays a Draft; a hosted registry remains out of scope (Unresolved question 4).
 
 RFC 0020 proposes `spec/workflow.md` beside Core, with a reader class and fixtures from a
 two-stage run, none recorded yet.
