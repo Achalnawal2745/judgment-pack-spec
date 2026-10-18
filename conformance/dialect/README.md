@@ -1,6 +1,6 @@
 # Dialect vectors (staged)
 
-This directory holds 39 vectors for the dialect, written for the preparation-verifier class that
+This directory holds 47 vectors for the dialect, written for the preparation-verifier class that
 the companion document [`spec/dialect.md`](../../spec/dialect.md) defines. Its design record,
 [RFC 0018](../../rfcs/0018-dialect.md), was accepted on 2026-10-15, and the vectors are **staged**
 until the next `specVersion` opens. They are in no corpus.
@@ -39,10 +39,21 @@ generator wrote the first ten again byte for byte. The twenty-six after them, th
 the first of the kind `research`, were copied
 from the Runner's `main` at commit `4352763e22489ca80ffbf5df338b7e7cb61319e2`, Runner pull request
 97 squash-merged, whose generator wrote the first twelve again byte for byte. The thirty-ninth,
-`skipped-source-dependency-unavailable`, and the Runner's README and manifest as they now are,
-were copied from the Runner's `main` at commit `ed1bc2a7a02b7475e96178915c36df412e536314`, Runner
-pull request 105, whose generator wrote the first thirty-eight again byte for byte. This
-repository's manifest records each extension, in order, in `source.extendedBy`.
+`skipped-source-dependency-unavailable`, was copied from the Runner's `main` at commit
+`ed1bc2a7a02b7475e96178915c36df412e536314`, Runner pull request 105, whose generator wrote the
+first thirty-eight again byte for byte. The fortieth and forty-first, `acquired-dependent-source`
+and `acquired-dependent-source-unknown`, and the Runner's README and manifest as they then were,
+were copied from the Runner's `main` at commit `694fe691fd8d325cad92ef56e215ee9a3cdaafaf`, Runner
+pull request 109 squash-merged, whose generator wrote the first thirty-nine again byte for byte. The
+Runner's manifest alone was copied again from its `main` at commit
+`a4fa24525e6b5e13e64dcb242393aec3c30d264c`, Runner pull request 137 squash-merged: it changes one
+expectation, the `verifyRun.report` of `disposition-differs-from-audit`, which now carries the
+preparation's checked report beside the finding, and adds no vector. The forty-second to
+forty-seventh, the six `endpoint-scope-` vectors, and the Runner's README and manifest as they now
+are, were copied from the Runner's `main` at commit `10c073c83ce898ec1a284203b9fd76b269722326`,
+Runner pull request 142 squash-merged, which holds the forty-one unchanged. This repository's
+manifest records each extension, in order, in `source.extendedBy`; that of pull request 137
+lists no vector.
 The Runner's README says
 what each file holds and how the vectors were generated, and its manifest gives every file's
 SHA-256, the binding the Runner passes for each preparation, the record's binding as recorded, and
@@ -81,9 +92,11 @@ in each vector's `preparation.retained`:
 - `recorded`: the vector's inputs were changed after the run, so that no preparation can be
   computed from them. `preparation.json` is then the preparation the run recorded, held fixed, which
   the export retains, and `preparation.sha256` its digest: nothing is recomputed, and the verifier's
-  answer is the finding this repository's manifest gives, `acquisition-invalid`, the code the
-  Runner's `verify-run` names in its refusal. The value is the Runner's (its README, "What a vector
-  holds"), and two vectors carry it, the two `changed-response` vectors.
+  answer is the finding this repository's manifest gives, the code the Runner's `verify-run` names
+  in its refusal. The value is the Runner's (its README, "What a vector holds"), and six vectors
+  carry it: the two `changed-response` vectors and four `endpoint-scope-` vectors. The answer is
+  `acquisition-invalid` in five of them and `profile-mismatch` in
+  `endpoint-scope-changed-constraint`.
 
 The other files — `release-digest.txt`, `public-key.txt`, `checkpoints.jsonl` — are for
 `verify-run`'s checks of an export, which are not this class's.
@@ -173,6 +186,39 @@ has exactly `parameter`, `source` and `pointer`: `approver`, `sponsor`, `/sponso
 The skipped source has no acquisition or citation. Both readers recompute `preparation.json`
 byte for byte and give a reading, binding `matches`, as `verify-run` reports `verified-inputs`.
 
+The fortieth and forty-first, `acquired-dependent-source` and `acquired-dependent-source-unknown`,
+hold the other side of §9.3's rule: an acquired source that declares source parameters carries
+`dependencies` too. Their dialect is the thirty-ninth's but for each source's `profileDigest`.
+`sponsor`'s record names the sponsor `S-1`, so its claim is `resolved`, and `endorsement` is
+acquired with both parameters valued, `approver` `S-1` and `requestType` `data-access`, carried
+into its request: its outcome's `arguments` are the tool `lookup` with `table` `endorsements` and
+those two values. Its claim is `resolved` in the fortieth and `unknown` in the forty-first, whose
+`/endorsement` entry is not `present`. Both of `endorsement`'s target entries carry its receipt,
+the outcome's status and reason, and `dependencies` as the thirty-ninth's: `approver`, `sponsor`,
+`/sponsor/id`, then `requestType`, `intake`, `/intake/type`. No other source's entry carries
+`dependencies`. Both readers recompute `preparation.json` byte for byte and give a reading,
+binding `matches`, as `verify-run` reports `verified-inputs`.
+
+The forty-second to forty-seventh, the six `endpoint-scope-` vectors, hold an input profile that
+carries `endpointScope` in place of one endpoint (the companion document, §5.1). Each is a run of
+one research source, `company-pages`, of dialect version 3 bound at import, whose page profile,
+`pages`, is of class `generated`, shape `http` and adapter `adapter-web`, with the research
+declaration `page` alone; the scope's whole value is in the profile's digest, which `binding.json`
+pins. The class's answers:
+
+| Vector | What it holds | The class's answer |
+| --- | --- | --- |
+| `endpoint-scope-two-paths-one-origin` | scope `https://docs.example.com/guides`; two pages at two paths of that origin | a reading, binding `matches` |
+| `endpoint-scope-wildcard-two-origins` | scope `https://*`; two pages of two origins | a reading, binding `matches` |
+| `endpoint-scope-endpoint-outside` | a retained response whose receipt names an endpoint under `/guides-archive`, outside the scope at a segment boundary | `acquisition-invalid` |
+| `endpoint-scope-redirect-outside` | a request inside the scope whose receipt names the final URL of a redirect to another origin | `acquisition-invalid` |
+| `endpoint-scope-changed-constraint` | the profile's scope widened by one entry, `binding.json` naming the digest it had | `profile-mismatch` |
+| `endpoint-scope-changed-request` | a retained request changed under a receipt held fixed | `acquisition-invalid` |
+
+The four refusal vectors are retained `recorded`: their inputs were changed after the run, so
+`preparation.json` is the preparation the run recorded and nothing is recomputed. Both readers
+give each vector this repository's manifest's answer.
+
 One vector is answered otherwise than `verify-run` answers it. `disposition-differs-from-audit`
 alters the run's retained result, which is the Runner's export and no part of a preparation or a
 record: its preparation and its record are the valid case's, and the class reads them so. The
@@ -211,8 +257,8 @@ python tools/dialect_verify.py --dialect mapping.json --case case.json --acquisi
     [--require-binding]
 ```
 
-For a vector that holds `binding.json`, `unbound-bound-at-import` and the twenty-six research
-vectors, `--dialect unbound.json --binding binding.json`.
+For a vector that holds `binding.json`, `unbound-bound-at-import`, the twenty-six research
+vectors and the six `endpoint-scope-` vectors, `--dialect unbound.json --binding binding.json`.
 
 ## How they land
 

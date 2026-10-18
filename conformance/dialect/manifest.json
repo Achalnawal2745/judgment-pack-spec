@@ -61,12 +61,37 @@
         "vectors": [
           "skipped-source-dependency-unavailable"
         ]
+      },
+      {
+        "pullRequest": 109,
+        "commit": "694fe691fd8d325cad92ef56e215ee9a3cdaafaf",
+        "vectors": [
+          "acquired-dependent-source",
+          "acquired-dependent-source-unknown"
+        ]
+      },
+      {
+        "pullRequest": 137,
+        "commit": "a4fa24525e6b5e13e64dcb242393aec3c30d264c",
+        "vectors": []
+      },
+      {
+        "pullRequest": 142,
+        "commit": "10c073c83ce898ec1a284203b9fd76b269722326",
+        "vectors": [
+          "endpoint-scope-two-paths-one-origin",
+          "endpoint-scope-wildcard-two-origins",
+          "endpoint-scope-endpoint-outside",
+          "endpoint-scope-redirect-outside",
+          "endpoint-scope-changed-constraint",
+          "endpoint-scope-changed-request"
+        ]
       }
     ]
   },
   "runnerFiles": {
-    "vectors/README.md": "af0f6c7cc0a0350be67bca74609d5b7e23562ea547a162d48727cf534a8a45af",
-    "vectors/manifest.json": "6649057d739e78047b618c3d2e61ab1fa33a3b27ac16eae06dc49548893c8b64"
+    "vectors/README.md": "58fea34cf5a411bbd74fce124c2ad54877a49695ed40cda20ecf8b405b8fef9e",
+    "vectors/manifest.json": "b93af57a8165888dd43081a67a5aa7ea43cf3b49076af3c734479afbec589129"
   },
   "cases": [
     {
@@ -341,6 +366,62 @@
       "requiresBinding": true,
       "expectedResult": "reading",
       "expectedBinding": "matches"
+    },
+    {
+      "id": "acquired-dependent-source",
+      "path": "vectors/acquired-dependent-source",
+      "requiresBinding": true,
+      "expectedResult": "reading",
+      "expectedBinding": "matches"
+    },
+    {
+      "id": "acquired-dependent-source-unknown",
+      "path": "vectors/acquired-dependent-source-unknown",
+      "requiresBinding": true,
+      "expectedResult": "reading",
+      "expectedBinding": "matches"
+    },
+    {
+      "id": "endpoint-scope-two-paths-one-origin",
+      "path": "vectors/endpoint-scope-two-paths-one-origin",
+      "requiresBinding": true,
+      "expectedResult": "reading",
+      "expectedBinding": "matches"
+    },
+    {
+      "id": "endpoint-scope-wildcard-two-origins",
+      "path": "vectors/endpoint-scope-wildcard-two-origins",
+      "requiresBinding": true,
+      "expectedResult": "reading",
+      "expectedBinding": "matches"
+    },
+    {
+      "id": "endpoint-scope-endpoint-outside",
+      "path": "vectors/endpoint-scope-endpoint-outside",
+      "requiresBinding": true,
+      "expectedResult": "finding",
+      "expectedFinding": "acquisition-invalid"
+    },
+    {
+      "id": "endpoint-scope-redirect-outside",
+      "path": "vectors/endpoint-scope-redirect-outside",
+      "requiresBinding": true,
+      "expectedResult": "finding",
+      "expectedFinding": "acquisition-invalid"
+    },
+    {
+      "id": "endpoint-scope-changed-constraint",
+      "path": "vectors/endpoint-scope-changed-constraint",
+      "requiresBinding": true,
+      "expectedResult": "finding",
+      "expectedFinding": "profile-mismatch"
+    },
+    {
+      "id": "endpoint-scope-changed-request",
+      "path": "vectors/endpoint-scope-changed-request",
+      "requiresBinding": true,
+      "expectedResult": "finding",
+      "expectedFinding": "acquisition-invalid"
     }
   ]
 }

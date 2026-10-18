@@ -7,6 +7,31 @@ here.
 
 ### Added
 
+- The forty-second to forty-seventh dialect vectors, the six `endpoint-scope-` vectors
+  (`endpoint-scope-two-paths-one-origin`, `endpoint-scope-wildcard-two-origins`,
+  `endpoint-scope-endpoint-outside`, `endpoint-scope-redirect-outside`,
+  `endpoint-scope-changed-constraint`, `endpoint-scope-changed-request`), staged byte for byte from
+  Runner commit `10c073c`, pull request 142 (issue #199), beside the forty-one unchanged vectors.
+  Both readers, unchanged, give each the manifest's answer: a reading whose binding `matches` for
+  the first two, `acquisition-invalid` for the endpoint outside, the redirect outside and the
+  changed request, `profile-mismatch` for the changed constraint. The markers round 15 placed in
+  `spec/dialect.md` §§5.1 and 5.2 (and the RFC's Specification, equally) follow the staged vectors
+  for the rules they decide; this is no rule change. The vectors remain staged until the next
+  `specVersion` opens, in no corpus.
+- The staged Runner manifest of the dialect vectors brought to Runner commit `a4fa245`, pull
+  request 137 (issue #205): the one expectation it changes, the `verifyRun.report` of
+  `disposition-differs-from-audit`, now carries the preparation's checked report beside the
+  finding. No vector file, count or status changes, and the cross-reader test's comparison of a
+  reading with the report now covers that vector. `source.extendedBy` records the commit with no
+  vectors.
+- The fortieth and forty-first dialect vectors, `acquired-dependent-source` and
+  `acquired-dependent-source-unknown`, staged byte for byte from Runner commit `694fe69`, pull
+  request 109 (issue #203), beside the thirty-nine unchanged vectors: an acquired source that
+  declares source parameters, its claim `resolved` or `unknown`, whose lineage entries name every
+  declared parameter in `dependencies` (§9.3). Both readers, unchanged, recompute each preparation
+  byte for byte and give a reading whose binding `matches`, and the cross-reader test holds their
+  reports equal on all forty-one. The vectors remain staged until the next `specVersion` opens, in
+  no corpus.
 - The thirty-ninth dialect vector, `skipped-source-dependency-unavailable`, from Runner commit
   `ed1bc2a`, pull request 105, staged byte for byte beside the thirty-eight unchanged vectors.
   The vectors remain staged until the next `specVersion` opens, in no corpus.
@@ -231,6 +256,27 @@ here.
 
 ### Changed
 
+- RFC 0018 and its companion record issue #199, direction A (2026-10-17, round 15): an optional
+  `endpointScope` for page profiles, checked against each signed final endpoint. The form admits
+  all three spellings of port 443; only generated research page profiles admit the wildcard,
+  while record profiles hold prefix entries only. Both readers implement the rule with controls
+  on altered copies of a staged vector. Exact profiles and historical receipts stay unchanged;
+  no vector changes. Runner support and evidence as vectors, and the Desk's profile review,
+  remain follow-ups. The review and the maintainer's disposition are recorded in
+  `rfcs/reviews/0018-round-15.md` (one HIGH, two MEDIUM and four LOW, all applied).
+- RFC 0018 and its companion, issue #200: the `dependencies` row of §9.3's lineage table no longer
+  says the member is absent for a local file. It reads "absent for the case and a source that
+  declares none", as round 12's rule in the same section already gives it to every source that
+  declares a source parameter, acquired or skipped; the reference Runner writes it for a local
+  file with parameters. A correction of a contradiction inside round 12's own text, not a new
+  rule. Both readers already follow the general rule; no reader changes, no vector is changed.
+- RFC 0018 and its companion record issue #197, option A (2026-10-16, round 14): a `selected-file`
+  of provider `google-drive` requires a `drive` input profile of class `record`, and its binding
+  is `record`; a profile of class `generated` bound to it is `profile-mismatch` (§§4, 4.2 and 5.1).
+  The reference Runner already enforces this rule. Neither repository reader reads the kind,
+  and no vector holds it; §5.1 marks the rule as a position no vector decides. No reader changes,
+  and no vector is changed or claimed; the review and the maintainer's disposition are recorded
+  in `rfcs/reviews/0018-round-14.md` (six LOW, five applied and one noted).
 - RFC 0018 and its companion record issue #195 (2026-10-16, round 13): §5.1 states which class
   a binding takes, by kind, with references from §§4, 4.4 and 8.2. An `operation` of any admitted
   shape takes its profile's class; research capability bindings take `generated`, and `web`

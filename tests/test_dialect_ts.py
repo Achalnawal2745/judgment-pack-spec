@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # (tools/dialect-verify-ts/README.md). Node runs it directly, stripping the types; nothing is installed.
 READER = ROOT / "tools" / "dialect-verify-ts"
 MINIMUM = (22, 18)
-TESTS = ("test/vectors.test.ts", "test/units.test.ts")
+TESTS = ("test/vectors.test.ts", "test/units.test.ts", "test/endpoint.test.ts")
 
 
 # Reads a JSON array of cases on standard input, each document in base64, and writes the second reader's report for
@@ -93,10 +93,11 @@ class SecondDialectReaderTest(unittest.TestCase):
         # receipt answers (issue #182 item 4) on operation receipts, in versions 2 and 3, each a
         # vector signed again; round 12's skipped-source members, each altered alone, and an
         # acquired dependent source with a resolved or unknown claim, signed again; and every
-        # staged vector, the Runner's research and skipped-source vectors among them, as
-        # conformance/dialect/README.md gives it to a verifier. Their reports must be equal byte for
-        # byte, and the answer the text, or the staged manifest, gives. A disagreement is a finding
-        # about the readers or the text, and is reported here, never papered over.
+        # staged vector, the Runner's research, skipped-source and acquired dependent-source
+        # vectors among them, as conformance/dialect/README.md gives it to a verifier. Their
+        # reports must be equal byte for byte, and the answer the text, or the staged manifest,
+        # gives. A disagreement is a finding about the readers or the text, and is reported here,
+        # never papered over.
         node = self.node()
         first = first_reader_tests()
         batch, names = [], []
@@ -104,7 +105,14 @@ class SecondDialectReaderTest(unittest.TestCase):
         cases = first.research_cases() + first.receipt_cases() + list(artifact_cases())
         cases += first.skipped_source_cases()
         cases += first.acquired_source_cases()
+        from test_dialect_scope import endpoint_scope_cases
+        cases += endpoint_scope_cases()
         cases += first.vector_cases()
+        staged = [name for name, _, _ in cases if name.startswith("vector ")]
+        rows = json.loads((first.DIALECT / "manifest.json").read_text(encoding="utf-8"))["cases"]
+        self.assertEqual([f"vector {row['id']}" for row in rows], staged)
+        self.assertIn("vector acquired-dependent-source", staged)
+        self.assertIn("vector acquired-dependent-source-unknown", staged)
         for name, expected, build in cases:
             inputs = build()
             report = first.READER.preparation_bytes(first.READER.report(inputs.verify().answer)).decode("utf-8")

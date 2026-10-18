@@ -12,7 +12,7 @@ Its design record is [RFC 0018](../rfcs/0018-dialect.md), accepted on 2026-10-15
 which is informative; its Specification section, §§1–14 below, is that text. The comment period
 RFC 0000 names was waived by the maintainer, as the RFC's adoption record says.
 
-Its thirty-nine vectors, under
+Its forty-seven vectors, under
 [`conformance/dialect/`](https://github.com/Judgment-Pack/judgment-pack-spec/tree/main/conformance/dialect),
 are the reference Runner's `vectors/preparation/`, byte for byte: nine at commit
 `05636eda96a9588279d61a6272625be859a28117` (Runner pull request 77), which reached the Runner's
@@ -26,7 +26,12 @@ kind `research`, the runs of §11's two examples, at the Runner's `main` commit
 `4352763e22489ca80ffbf5df338b7e7cb61319e2` (Runner pull request 97, not yet released), which holds
 the twelve unchanged; and the thirty-ninth, `skipped-source-dependency-unavailable`, at the Runner's
 `main` commit `ed1bc2a7a02b7475e96178915c36df412e536314` (Runner pull request 105), which holds
-the thirty-eight unchanged.
+the thirty-eight unchanged; and the fortieth and forty-first, `acquired-dependent-source` and
+`acquired-dependent-source-unknown`, at the Runner's `main` commit
+`694fe691fd8d325cad92ef56e215ee9a3cdaafaf` (Runner pull request 109), which holds the thirty-nine
+unchanged; and the forty-second to forty-seventh, the six `endpoint-scope-` vectors, at the Runner's
+`main` commit `10c073c83ce898ec1a284203b9fd76b269722326` (Runner pull request 142), which holds the
+forty-one unchanged.
 They are **staged** until the next `specVersion` opens: they are in no corpus, no claim may cite
 them, the site does not serve them,
 and no release bundle carries them. When that version opens they move into a corpus, normative for
@@ -38,9 +43,9 @@ It specifies version 2 of the dialect document and of the preparation, which are
 mapping v2 and its preparation, restated. Since the amendment of 2026-10-15 (RFC 0018, its
 Amendment), version 2's `operation` reads a gateway source of shape `airbyte`, `mcp` or `http`, as
 the Runner's mapping v2 does since its pull request 80: the vectors of version 2 hold `mcp`, in
-nine and the thirty-ninth, and `http`, in the tenth; `airbyte` is defined and not claimable (§4.1).
-That amendment is a compatible extension of the record kind to every adapter shape, and one
-restriction: a receipt that
+nine and the thirty-ninth to forty-first, and `http`, in the tenth; `airbyte` is defined and not
+claimable (§4.1). That amendment is a compatible extension of the record kind to every adapter
+shape, and one restriction: a receipt that
 attests a page (`pageItems`) is refused, whatever the shape (§5.2). The restriction changes one
 answer the accepted text gave: a signed acquisition of shape `mcp` whose receipt carried
 `pageItems` was read, and is `acquisition-invalid` now. The Runner has never prepared a paged
@@ -331,7 +336,7 @@ The kinds (the class a binding takes follows §5.1):
 | Kind | Version | Class | What is declared | Vectors |
 | --- | --- | --- | --- | --- |
 | `operation` | 2 | the profile's | a read of a gateway source of shape `airbyte`, `mcp` or `http` that an input profile pins, and a template of its request (§4.1); in version 3, also unbound (§4.4) | of shapes `mcp` and `http`; in version 3, of shape `mcp` bound and of shape `http` unbound |
-| `selected-file` | 2 | `asserted` for `local-file`, the profile's for `google-drive` | a document the operator selected (§4.2) | none |
+| `selected-file` | 2 | `asserted` for `local-file`, `record` for `google-drive` (§5.1) | a document the operator selected (§4.2) | none |
 | `http` | 3, proposed | the profile's | a request to a gateway HTTP source: method, path, query and body templates, header names (§4.3) | none |
 | `sql` | 3, proposed | the profile's | a statement on a connection, with its bound parameters (§4.3) | none |
 | `web` | 3, proposed | `record` (§5.1) | a public page by URL through the gateway (§4.3) | none |
@@ -413,12 +418,12 @@ it renders `12` and `3`.
 
 A `selected-file` source names a document the operator selected, by its member `provider`:
 `local-file`, a file on the operator's machine, of class `asserted`, with no profile, no `maxAge` and
-no request; or `google-drive`, a Drive file read through a gateway source a `drive` input profile
-pins, with `profile`, `profileDigest`, `maxAge` and `arguments` as in §4.1, its `fileId` and the
-consumed selection `grant` resolved from typed case parameters. Its acquisition is the Runner's
-selected snapshot (Runner, "Supported input and trust configuration"), whose form this document
-does not restate. The kind is defined, and not claimable: no vector holds one, and a version that
-admits it to a claim states the snapshot's form first.
+no request; or `google-drive`, a Drive file read through a gateway source that a `drive` input
+profile of class `record` (§5.1) pins, with `profile`, `profileDigest`, `maxAge` and `arguments` as
+in §4.1, its `fileId` and the consumed selection `grant` resolved from typed case parameters. Its
+acquisition is the Runner's selected snapshot (Runner, "Supported input and trust configuration"),
+whose form this document does not restate. The kind is defined, and not claimable: no vector holds
+one, and a version that admits it to a claim states the snapshot's form first.
 
 ### 4.3 Kinds proposed for version 3
 
@@ -696,6 +701,7 @@ exactly
 | `shape` | `airbyte`, `mcp`, `http` or `command` |
 | `adapter` | an object of exactly `name` and `version`, strings, and `digest`, a digest |
 | `endpoint` | a string, or `null` |
+| `endpointScope` | an optional array of endpoint prefixes (§5.1 below) |
 | `tools` | an array of distinct non-empty strings, optional, which a profile of shape `mcp` MUST give and MUST NOT give empty |
 | `calculator` | an object of exactly `name` and `version`, strings, optional: the profile is a calculator's (§7) |
 | `research` | an optional closed object of `capabilities` and conditional `model`, as below |
@@ -711,11 +717,104 @@ are `input-malformed`; a well-formed profile without the declaration or with uns
 capabilities or model is `profile-mismatch` when bound to research (§4.4). This extension
 changes no operation binding check and makes no claim about model weights or execution.
 
+**An endpoint constraint.** `endpointScope` is an array of 1 to 32 distinct strings, each at
+most 2048 UTF-8 bytes, in the forms below. Distinct means unequal as JSON strings. Order is kept;
+no entry is added, removed or rewritten. Its whole value enters the profile digest, so a change
+changes every binding that pins that digest. `endpoint` remains REQUIRED and MUST be `null`
+when `endpointScope` is present: exactly one endpoint rule applies. Without `endpointScope`, the
+profile's form, digest and exact endpoint check are unchanged. A reader written before this
+amendment refuses the unknown member as `input-malformed` under the closed profile form. No
+profile version member or dialect format selector is added. (The vector
+`endpoint-scope-changed-constraint` decides that a changed scope fails the binding's digest,
+`profile-mismatch`; no vector decides the other rules here.)
+
+The member is admitted only on shape `http` with `adapter.name` exactly `adapter-web`. If
+`research` is present, its `capabilities` MUST be exactly `["page"]`; a `generated` profile
+carrying the constraint MUST have that declaration. A `record` profile may omit it. A profile
+carrying the member outside these conditions, with a non-null `endpoint`, or with a malformed
+scope is `input-malformed`. The member is admitted on a `research` source's `page` assignment
+and on a `web`-kind source, subject to the class rules below. Binding such a profile to any
+other kind or capability is `profile-mismatch`. `search` and `answer` retain exact provider
+endpoints. The same checks hold a retained response's assigned profile. (The vectors
+`endpoint-scope-two-paths-one-origin` and `endpoint-scope-wildcard-two-origins` decide that a
+`research` source's `page` assignment admits the member; no vector decides the other rules here.)
+
+**The endpoint form for a constrained page.** This restricts the Gateway's remote-server URL
+form (`SPEC.md` §1.2a at `v0.17.0`) to HTTPS names, admitting the empty port as below. It is a
+string of at most 2048 ASCII characters, each from U+0021 to U+007E: exactly `https://`, then a
+host, then either nothing, `:443`, or `:` followed by nothing, then either nothing or a path,
+which begins with `/`. There is no user, query or fragment. The host consists of two or more
+dot-separated labels, each of 1 to 63 characters. Each label starts and ends
+with an ASCII letter or digit; its other characters are ASCII letters, digits or `-`. The last
+label starts with an ASCII letter. There is no trailing dot, underscore, IPv4 or IPv6
+literal, wildcard or other port. The path has no `?`, `#` or backslash. Each `%` is followed by
+two hexadecimal digits, of either case. Split the path at each literal `/`: no segment is one
+or two tokens each of which is `.`, `%2e` or `%2E`. Thus literal and percent-spelled dot segments
+are refused, without decoding any path. Other escapes, including an escaped slash, remain
+literal bytes and never supply a segment boundary. This form holds the receipt's endpoint only
+when its profile carries `endpointScope`; it changes no historical receipt rule.
+(No vector decides this.)
+
+Each scope entry is either a prefix in that endpoint form, or exactly `https://*`. The wildcard
+is admitted only on a profile of class `generated`, which only a research `page` assignment
+takes. A `record` profile's scope holds prefix entries only; a `record` profile carrying the
+wildcard is `input-malformed`. The wildcard admits every endpoint in that form, including an
+origin discovered during a case. It admits neither another scheme nor another port, nor an IP
+literal. It asserts no public reachability:
+a verifier does not resolve names, check addresses or establish that a host is public. The
+Gateway's connection and redirect policy still applies. Neither a source nor a binding document
+can narrow the scope per case in this round; `constraints` adds no endpoint rule. A portable
+recipe cannot require reads to stay on a case's company origin under a wider installation
+profile. Such narrowing needs a later contract. (The vector
+`endpoint-scope-wildcard-two-origins` decides the wildcard's admission of two origins; no vector
+decides the other rules here.)
+
+**Matching.** Validate the endpoint's form first. An endpoint matches the scope when at least
+one entry admits it. For a prefix entry, the hosts are equal, ASCII `A` to `Z` compared as `a`
+to `z`; an absent port, `:443` and `:` followed by nothing denote port 443. Compare paths byte
+for byte, case and percent spelling included, with no decoding, slash collapse or other
+normalization. An absent
+prefix path or `/` admits every path, the absent endpoint path included. Otherwise the endpoint
+path must equal the prefix path, or start with that path followed by `/`; when the prefix
+already ends in `/`, starting with that prefix suffices. Thus `/docs` admits `/docs` and
+`/docs/x`, never `/docsx`; `/docs/` admits `/docs/` and `/docs/x`, never `/docs`. No subdomain
+match is implied. These comparisons rewrite neither the profile nor the receipt, and require
+no URL library. They admit host case and all three spellings of port 443 as the Gateway writes
+them today; no new Gateway normal form is required. (The vectors
+`endpoint-scope-two-paths-one-origin` and `endpoint-scope-endpoint-outside` decide a path prefix at
+a segment boundary, and `endpoint-scope-wildcard-two-origins` decides the wildcard; no vector
+decides the other rules here.)
+
+**Admission before acquisition.** A preparer MUST check every requested page URL against the
+assigned scope before sending that request. For this check, the URL is of the endpoint form
+above, optionally followed by `?` and a query of zero or more U+0021 to U+007E characters other
+than `#`, each `%` followed by two hexadecimal digits. The whole URL is at most 2048 bytes.
+Remove only the first `?` and everything after it for matching; keep the full request unchanged
+for its commitment. An invalid or out-of-scope request fails as `acquisition-invalid`, before
+any acquisition for that request. This applies to every discovered URL, not just the first.
+Admission holds the requested URL, so a read reached through the Gateway's grounding redirect
+(`https://vertexaisearch.cloud.google.com/grounding-api-redirect/…`) needs that endpoint in the
+scope, or the wildcard. It is an admission duty, not an offline verifier's reconstruction of
+the request URL.
+(No vector decides this.)
+
+At binding, a `web` source's literal `url` that cannot meet that request check is
+`profile-mismatch`. A `$param` URL is checked when resolved, before acquisition; no case value
+is read during profile matching. Research declares no fixed page URL, so a discovered URL
+outside the scope is an acquisition failure, not `profile-mismatch`. No model is run to predict
+which URLs a recipe could request. These duties add no support for an unread kind: §11 still
+refuses it before findings. (The vector `endpoint-scope-endpoint-outside` decides that a discovered
+URL outside the scope is an acquisition failure, `acquisition-invalid`, not `profile-mismatch`; no
+vector decides the other rules here.)
+
 A profile's `class` is the profile's own; a binding takes it only where the source's kind admits
 that class. An `operation`, of any shape §4.1 admits, takes its profile's class, `record` or
 `generated`, as do the `http` and `sql` kinds (§4). `local-file` is `asserted` and has no profile
-(§4.2). For the file kinds, see §4's table and §4.2. The Vectors column of §4's table says which
-bindings the staged vectors hold.
+(§4.2). A `selected-file` of provider `google-drive` requires a `drive` input profile of class
+`record`; the binding is `record`, and a profile of class `generated` bound to it is
+`profile-mismatch` (Runner, "Supported input and trust configuration"). (No vector decides this.)
+§4.2 gives each provider's members. The Vectors column of §4's table says which bindings the
+staged vectors hold.
 
 For a `research` source, the profile assigned to `answer` serves the model's answer; a profile
 assigned to `search` or `page` serves the web reads retained with the answer — the links found,
@@ -743,10 +842,11 @@ match. The pair MUST be the source's AI assignment or one of its web assignments
 required above; otherwise `profile-mismatch`. The reference in the response supplies neither a
 profile nor a key. The source's profile does not substitute for a retained response's profile.
 
-What a profile pins — the gateway's key, source, authority, adapter, shape, endpoint, class, tools
-and any research declaration — is the installation's classification of a channel. It does not pin
-a credential, a tenant's configuration or a model's weights, and an installation replaces a
-profile when a change of those makes its classification wrong (Runner, "Decisions and ownership").
+A profile is the installation's classification of a channel. It pins the gateway's key, source,
+authority, adapter, shape, endpoint or endpoint scope, class, tools and any research declaration;
+it does not pin a credential, a tenant's configuration or a model's weights, and an installation
+replaces a profile when a change of those makes its classification wrong (Runner, "Decisions and
+ownership").
 
 ### 5.2 Acquisitions
 
@@ -789,6 +889,12 @@ An acquisition is held to its source and its profile, and any of these checks th
 3. `E.source` and `E.authority` are the profile's `source` and `authority`; and
    `E.acquisition.adapter`, `E.acquisition.shape` and `E.acquisition.endpoint` are, as JSON values,
    the profile's `adapter`, `shape` and `endpoint`.
+   With `endpointScope` only the endpoint comparison changes: `E.acquisition.endpoint` MUST
+   have §5.1's constrained page form and match the scope. The adapter and shape comparisons
+   stay exact. Failure, including an endpoint outside that form, is `acquisition-invalid`.
+   (The vectors `endpoint-scope-endpoint-outside` and `endpoint-scope-redirect-outside` decide an
+   endpoint of that form that the scope does not admit; no vector decides an endpoint outside that
+   form or the adapter and shape comparisons.)
 4. `E.argumentsCommitment` is `sha256:` followed by the hexadecimal SHA-256 of the 32 bytes `S.args`
    encodes, then the ASCII bytes `args:`, then the `canon` bytes of the source's request (§4.1).
 5. `E.resultDigest` is the digest of `R`'s `canon` bytes; an `R` outside the `canon` domain fails.
@@ -800,6 +906,18 @@ over that response's own `request`, not the research source's recipe. A failed c
 under the research source's profile and over the source's request and the whole research record.
 After the retained responses' checks and before the source's read, the whole record MUST be in
 the `canon` domain even when it has no receipt of its own; otherwise `acquisition-invalid`.
+
+**Which URL is held.** For a constrained page, check 3 holds the final URL after followed
+redirects, with its query removed, which the Gateway's web adapter writes as
+`acquisition.endpoint`. A final redirect target outside the scope fails that check. This does
+not check intermediate hops or the requested URL against the scope during replay. The adapter's
+retained provenance carries both URLs, but this document does not interpret that result form;
+`statement` is a commitment, not a clear URL. Check 4 still commits the full retained `request`,
+so changing it without a matching receipt fails. It does not prove the preparer made §5.1's
+admission check. No receipt, request, result or salt is relabelled or rewritten for a scope.
+(The vector `endpoint-scope-redirect-outside` decides that check 3 holds the final endpoint, and
+`endpoint-scope-changed-request` that check 4 commits the retained request; no vector decides the
+other rules here.)
 
 Then its times, against the preparation's instant, `verifiedAt`: the instants of
 `E.acquisition.observedAt` and `E.servedAt` MUST each be no more than the source's `maxAge`
@@ -1141,7 +1259,7 @@ ordered by code point. (No vector decides facts before evidence.) An entry is an
 | `present` | `true` when the claim gives the target a value — a value at the pointer, or any availability for the requirement — and `false` otherwise |
 | `status`, `reason` | the outcome's |
 | `basis` | the claim's `basis`, or `[]` for a skipped source |
-| `dependencies` | the source's declared source parameters, as below, for every source that declares one, acquired or skipped; absent for the case, a local file and a source that declares none |
+| `dependencies` | the source's declared source parameters, as below, for every source that declares one, acquired or skipped; absent for the case and a source that declares none |
 | `candidateFrom` | the pointers of the value read that the dialect could copy to the target, distinct, ordered by code point: a copy entry's `source`, or each `from` of a claim form that writes the target; absent when there is none, as for a rule's evidence target |
 | `readDigest` | the read digest (§6) |
 | `receipt` | the acquisition's citation; for `research`, the record's own citation when it has one; absent for the case, a local file, a skipped source and a research record with no receipt of its own |
@@ -1403,8 +1521,9 @@ the refusal, at the first of these phases that fails, in this order:
 3. the bounds of §12 that are counts — the sources, the parameters in a scope, the clauses of a
    rule, the conditions one `all` or `any` lists, the `unwrap` pointers, the fact and evidence
    targets, the retained responses per `research` source (at most 64), and every research field,
-   text, list, observation, citation, capability and read-source maximum in §12 — and the nesting
-   of each acquisition's result, taken wherever measurable before any form: `input-over-bound`.
+   text, list, observation, citation, capability and read-source maximum in §12; also the
+   endpoint-scope entry count and bytes per entry (§5.1); and the nesting of each acquisition's
+   result, taken wherever measurable before any form: `input-over-bound`.
    Type-dependent maxima measure each value by its field's declared `type` when that `type`
    is one of §4.3's six types, and not otherwise;
 4. a dialect document that is an object whose `version` is an integer of a version this document
@@ -1417,6 +1536,16 @@ the refusal, at the first of these phases that fails, in this order:
    against the timestamp form with an instant; the record against its reading below:
    `input-malformed`;
 6. a dialect that names a kind the verifier does not read: `kind-unread`.
+
+The scope maxima are measured in phase 3 wherever measurable, even on a profile of the wrong
+shape; an unknown or misplaced `endpointScope`, a malformed entry, or the wildcard on a
+`record` profile is `input-malformed` in phase 5, where a profile's form is checked.
+The scope's binding restrictions, including an impossible literal `web` URL, are finding 1.
+A receipt's scope match is check 3 within finding 3, in retained-response order. A preparer's
+request admission runs after parameters resolve and before that request is sent; it does not
+add an offline check of the requested URL. (The vectors `endpoint-scope-endpoint-outside` and
+`endpoint-scope-redirect-outside` decide a receipt's scope match as check 3; no vector decides the
+other rules here.)
 
 Some bounds are measured later, because they cannot be measured sooner: an unwrapped string's
 bytes, and the nesting and number literals of the value it holds, are measured when it is
@@ -1556,6 +1685,10 @@ after JSON decoding. Wrong forms and unmet minima are `input-malformed`; exceedi
 is `input-over-bound`. The document-size and nesting bounds still hold arbitrary retained
 results, requests, constraints and the combined value of §6.4. Nothing is truncated to fit.
 
+For endpoint scopes, at most 32 entries per profile and 2048 UTF-8 bytes per entry, counted
+after JSON decoding (§5.1). Exceeding either maximum is `input-over-bound` before forms;
+wrong forms, duplicate entries and an empty array are `input-malformed`. (No vector decides this.)
+
 Nesting is counted from the document's root at zero, and every object and every array is one level
 of it: `{}` is at one level, `{"a": []}` at two, and a document that is a string, a number, `true`,
 `false` or `null` at none. On the bytes, a **number literal** is a maximal run, outside strings, of
@@ -1618,6 +1751,17 @@ cited by URL alone is no retained response; the claim it supports is the answer'
   caller's asserted membership and order describe the run; that a field's status, value or
   citation indices are the model's rather than the caller's say; that a cited response supports
   the value it is cited for; that a `stale` or `not-found` status is right; which model answered.
+
+- **An acquisition under a constrained page profile.** Establishes: that each receipt's final
+  endpoint lay in the installation's reviewed scope, as the Gateway's adapter testified under
+  its signature. The profile digest holds the whole scope. (The vector
+  `endpoint-scope-changed-constraint` decides that the digest holds the scope, and the vectors
+  `endpoint-scope-endpoint-outside` and `endpoint-scope-redirect-outside` that the final endpoint
+  lies in it; no vector decides the other rules here.)
+
+  Does not establish: the page's content or relevance; that the host is public; anything about
+  the requested URL's scope or intermediate redirects; that the preparer checked admission.
+  Request commitments and result digests still hold their bytes as above.
 
 - **An asserted input: the case, a local file, a parameter no receipt commits.** Establishes: that
   the preparation carried what the operator supplied, faithfully.
