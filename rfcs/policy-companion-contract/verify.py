@@ -2,6 +2,7 @@
 """Offline checker for the PROPOSED DRAFT Policy companion 1.0.0, never authority."""
 
 import argparse
+import ipaddress
 import json
 import re
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
+from rfc3986_validator import URI_RE_COMP
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -137,18 +139,55 @@ def core_schema_view(value):
     return value
 
 
+def candidate_uri(value):
+    """RFC 3986 URI production; repair three pinned-validator defects locally."""
+    if not isinstance(value, str):
+        return True  # JSON Schema's type keyword handles non-string values.
+    if any(not 0x21 <= ord(char) <= 0x7E for char in value):
+        return False
+    scheme = re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", value)
+    if scheme is None:
+        return False
+    probe = value
+    if value[scheme.end():].startswith("//"):
+        authority_start = scheme.end() + 2
+        authority = re.split(r"[/?#]", value[authority_start:], maxsplit=1)[0]
+        host_port = authority.rsplit("@", 1)[-1]
+        if host_port.startswith("["):
+            end = host_port.find("]")
+            if end < 0:
+                return False
+            literal = host_port[1:end]
+            if literal.startswith(("v", "V")):
+                # ABNF quoted strings are case-insensitive. Change only the
+                # validation probe, never retained bytes or identity comparisons.
+                flag = authority_start + len(authority) - len(host_port) + 1
+                probe = value[:flag] + "v" + value[flag + 1:]
+            else:
+                try:
+                    ipaddress.IPv6Address(literal)
+                except ValueError:
+                    return False
+    # fullmatch refuses a final LF that the dependency's anchored match accepts.
+    # Its remaining grammar checks percent triplets and each component's alphabet.
+    return URI_RE_COMP.fullmatch(probe) is not None
+
+
 def validators():
     schemas = {name: read_json((HERE / (name + ".schema.json")).read_bytes())
                for name in ("common", "policy", "governing-adoption", "fixture", "vectors")}
     registry = Registry().with_resources((schema["$id"], Resource.from_contents(schema)) for schema in schemas.values())
     schemas["core"] = read_json((ROOT / "schema/judgment-pack-core.schema.json").read_bytes())
-    checker = FormatChecker()
-    if "uri" not in checker.checkers or checker.conforms("not a URI", "uri"):
+    candidate_checker = FormatChecker()
+    if "uri" not in candidate_checker.checkers or candidate_checker.conforms("not a URI", "uri"):
         raise RuntimeError("Install pinned requirements-dev.txt URI dependencies")
+    # The consuming Pack is checked within this candidate reader too. Override
+    # this instance only; shared Core/prototype validators keep their own checker.
+    candidate_checker.checks("uri")(candidate_uri)
     result = {}
     for name, schema in schemas.items():
         Draft202012Validator.check_schema(schema)
-        result[name] = Draft202012Validator(schema, registry=registry, format_checker=checker)
+        result[name] = Draft202012Validator(schema, registry=registry, format_checker=candidate_checker)
     return result
 
 
