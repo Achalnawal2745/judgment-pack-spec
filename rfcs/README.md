@@ -70,6 +70,7 @@ stable feature requires two independent implementations and conformance cases.
 | [0019] | The Judgment Exchange — a shared place for dialects | Draft | Research line (see below) |
 | [0020] | The workflow | Draft | Specification (a proposed companion document; see below) |
 | [0022] | Reusable subgraphs contract — explicit encapsulation and reference binding | Draft | Research line (see below) |
+| [0023](0023-policy-companion.md) | Policy content and governing adoption | Draft | Specification (proposed companion); live governance remains host-owned |
 
 [0018]: 0018-dialect.md
 [0019]: 0019-exchange.md

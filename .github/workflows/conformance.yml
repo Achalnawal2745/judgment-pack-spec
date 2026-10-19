@@ -33,3 +33,9 @@ jobs:
 
       - name: Check repository artifacts and static site
         run: python -m unittest discover -s tests -v
+
+      - name: Check exploratory Policy companion prototype (non-normative)
+        run: python -m unittest discover -s rfcs/policy-companion-prototype -p 'test_*.py' -v
+
+      - name: Check proposed draft Policy companion contract (not adopted)
+        run: python -m unittest discover -s rfcs/policy-companion-contract -p 'test_*.py' -v
