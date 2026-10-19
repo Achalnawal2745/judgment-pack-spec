@@ -679,8 +679,8 @@ PAGES = (
         "rfcs/0022-reusable-subgraphs.md",
         PurePosixPath("rfcs/0022-reusable-subgraphs/index.html"),
         "RFC 0022: Reusable subgraphs contract",
-        "Draft cross-project exploratory record: reusable subgraphs contract outside the specification, " 
-        "explicit encapsulation, project reference resolution, identity and version binding, " 
+        "Draft cross-project exploratory record: reusable subgraphs contract outside the specification, "
+        "explicit encapsulation, project reference resolution, identity and version binding, "
         "expanded node namespaces, and deterministic execution boundaries.",
         "proposals",
         "Draft proposal",

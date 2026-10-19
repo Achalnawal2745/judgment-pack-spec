@@ -38,6 +38,7 @@ than once within a single parent graph.
 
 The central problem this record addresses is how to achieve modular composition without silently
 treating detached copies as live references:
+
 1. **Explicit Encapsulation**: A reusable subgraph declares formal input parameters with
    node-scoped destination mappings (`inputs`) and exposed decision outputs (`outputs`), preventing
    ambient state leakage across graph boundaries.
@@ -90,6 +91,7 @@ five distinct failure modes:
 ## Evidence
 
 The standing evidence for graph composition is recorded in RFC 0002:
+
 - Study 003 (2026-07) identified cross-decision references in public policy corpora.
 - The reference runtime prototype (ADR-0015, 2026-07-29) demonstrated flat dataflow composition
   behind an experimental surface, since released and expanded across eight decision records.
@@ -98,6 +100,7 @@ The standing evidence for graph composition is recorded in RFC 0002:
   composition explicitly to the dataflow seam (one decision's outcome as another's input).
 
 What the repository currently has:
+
 - A flat composition format where nodes reference packs only, and no graph nesting exists.
 - An optional reviewed-set lock (`jpack.lock.json`, ADR-0019) that binds pack documents to exact
   byte digests.
@@ -160,7 +163,56 @@ contract:
 }
 ```
 
+#### Dataflow Edge Schema and Reserved Caller Identity
+
+In addition to node definitions, graph documents define dataflow edges connecting caller inputs and
+node outcomes to downstream nodes.
+
+To prevent collision or semantic ambiguity between caller-provided inputs and internal node feeds, the
+identifier `"caller"` is **reserved** as an immutable, special-purpose source ID representing the
+parent evaluation context:
+
+- No node within any graph (root or subgraph) may declare the identifier `"caller"`.
+- Static validation MUST refuse any graph declaring a node with `id: "caller"` or `"node": "caller"`.
+
+Dataflow edges encompass four distinct varieties:
+
+1. **Caller-to-Node Fact Feed**: An edge where `from: "caller"` maps a caller-supplied fact path
+   (`fact`) to a designated target node (`to`) and its input fact pointer (`input` or `fact`).
+2. **Caller-to-Node Evidence Feed**: An edge where `from: "caller"` maps a caller-supplied evidence item
+   (`evidence`) to a designated target node (`to`) and its requirement ID (`requirementId`).
+3. **Node-to-Node Outcome-as-Fact Feed**: An edge where `from: "<upstream-node-id>"` feeds an upstream
+   node's determined outcome to a downstream node's RFC 6901 fact pointer (`fact`).
+4. **Node-to-Node Evidence Availability Feed**: An edge where `from: "<upstream-node-id>"` contributes
+   an upstream node's availability status to a downstream node's evidence requirement (`requirementId` or `evidence`),
+   with optional `onUnresolved` (`unknown` by default, or `absent` if declared).
+
+##### Outcome Feed Value Semantics and Missing-Input Fallthrough
+
+- **Determined Outcome**: When the upstream node evaluates to a determined outcome (`"kind": "outcome"`),
+  its `outcomeId` string is written directly as the value at the downstream node's target fact pointer.
+- **Non-Determined Outcome**: When the upstream node evaluates to `"kind": "unresolved"` (or produces
+  no outcome), it injects no fact into the target pointer, leaving the target pointer absent.
+- **Downstream Evaluation Under Core §7 and §8**:
+  - Under Core §7, reading an absent fact pointer evaluates to `unknown`.
+  - Under Core §8.1 step 4, a condition (such as an `all` or `equals` condition) referencing an absent
+    pointer evaluates to `unknown`.
+  - If `onUnknown` is `"ignore"` (or omitted), Core §8.1 step 5 skips the rule.
+  - If no other rule, exception, or fallback outcome matches, evaluation proceeds to **Core §8 step 10**,
+    yielding:
+    ```json
+    {
+      "kind": "unresolved",
+      "reasons": ["no-match"],
+      "handoff": {
+        "state": "none"
+      }
+    }
+    ```
+    rather than `["unknown"]`.
+
 #### Binding Carrier Rules
+
 1. **Node-Scoped Mappings**: An external fact or evidence contribution is explicitly mapped to a
    specific internal node and a specific destination pointer or requirement ID. Requirement IDs
    are pack-local; explicit mapping prevents collisions when two internal packs declare identical
@@ -169,7 +221,9 @@ contract:
    subgraph. If an external fact mapped to an internal pointer is not supplied by the caller or
    upstream edge, that pointer is absent at the target node (which Core §7 reads as `unknown`). If
    an external evidence requirement mapped to an internal requirement is not supplied, it is absent
-   from the target pack's evidence availability document (which Core §8.2 reads as `unknown`).
+   from the target pack's evidence availability document (which Core §8.2 reads as `unknown`). When a
+   rule condition evaluates to `unknown` and `onUnknown: "ignore"` skips the rule without a matching
+   fallback, Core §8 step 10 evaluates to `{"kind": "unresolved", "reasons": ["no-match"], "handoff": {"state": "none"}}`.
 3. **Collision Refusal and Overlapping Pointers**: Following RFC 0002 and ADR-0015, if an incoming
    feed targets a fact pointer or evidence requirement that collides with caller-supplied data or
    another edge targeting the same internal node, the graph is refused before evaluation begins.
@@ -179,7 +233,8 @@ contract:
 4. **Fact Feeds vs. Evidence Feeds**: The `onUnresolved` switch applies strictly to **evidence
    availability feeds** (contributing `unknown` by default, or `absent` if declared). Outgoing
    **fact feeds** do not use `onUnresolved`: an upstream node that produced no outcome simply
-   injects no fact into the target pointer, leaving the pointer absent.
+   injects no fact into the target pointer, leaving the pointer absent, triggering Core §7 unknown
+   reading and Core §8 step 10 `no-match` fallthrough downstream.
 
 ### 3. Reference Resolution, Identity, and Digest Pinning
 
@@ -199,6 +254,7 @@ A parent graph references a reusable subgraph as a node:
 ```
 
 #### Resolution and Binding Rules
+
 - **Project-Local Resolution**: In a project configuration (`jpack.json`), a `graphs` object maps
   local graph names to filesystem paths. A node specifying `"subgraph": "sanctions-screening"`
   resolves through this table.
@@ -225,6 +281,7 @@ A parent graph references a reusable subgraph as a node:
 ### 4. Address Grammar and Version Negotiation
 
 #### Local Identifiers vs. Instance Addresses
+
 - **Local Node Identifiers**: Local node IDs inside any graph (parent or subgraph) MUST conform to
   the established runtime node grammar:
   ```regex
@@ -232,6 +289,7 @@ A parent graph references a reusable subgraph as a node:
   ```
   Local IDs consist of lowercase alphanumeric segments separated by single hyphens (no dots, no
   underscores).
+
 - **Instance Addresses**: When identifying a node across an instance boundary (in validation
   diagnostics, traces, or provenance fields), the address is a distinct type formatted as an
   injective slash-separated path:
@@ -242,6 +300,7 @@ A parent graph references a reusable subgraph as a node:
   and prevent ambiguous parsing.
 
 #### Version Negotiation
+
 - The graph document schema carries a required `formatVersion` string (e.g. `"0.2.0-draft"`).
 - A reader that does not support nested subgraph nodes MUST refuse documents declaring an
   unsupported `formatVersion` or containing the `"subgraph"` member on a node.
@@ -251,28 +310,35 @@ A parent graph references a reusable subgraph as a node:
 ### 5. Acyclicity, Traversal Bounds, and Candidate Algorithms
 
 #### Declarative Invariant
+
 The composition of graphs, subgraphs, and dataflow edges MUST form a strict Directed Acyclic Graph
 (DAG). Both of the following MUST hold:
+
 1. **Subgraph Reference Acyclicity**: No graph may reference itself directly or transitively
    (`A -> B -> A` is invalid).
 2. **Dataflow Acyclicity**: Across all expanded scopes, no directed cycle of outcome-as-fact or
    evidence-availability feeds may exist.
 
 #### Candidate Algorithms vs. Format Specification
+
 In keeping with RFC 0002's retained determination that the format defines no algorithm:
+
 - Algorithms such as Tarjan's strongly connected components (SCC) for cycle detection or Kahn's
   algorithm for topological sorting are **candidate runtime implementation choices**.
 - Conformance requires that any cyclic composition is refused before evaluation; an implementation
   is free to choose its verification algorithm.
 
 #### Unambiguous Bounds and Accounting Rules
+
 To prevent resource exhaustion (graph bomb attacks or combinatorial expansion):
+
 - **Nesting Depth Accounting**:
   - The root parent graph is at depth **0**.
   - A subgraph directly referenced by a node in the root graph evaluates at depth **1**.
   - Each nested subgraph reference edge increments the depth by 1.
   - The provisional limit is a maximum depth of **8** (depths 0 through 8 inclusive are valid; a
     subgraph at depth 9 is refused before evaluation).
+
 - **Node Budget Accounting**:
   - The counted units are **evaluated leaf pack node instances**.
   - Composite wrapper nodes (subgraph reference nodes) are structural boundaries and do NOT count
@@ -282,6 +348,7 @@ To prevent resource exhaustion (graph bomb attacks or combinatorial expansion):
   - The provisional budget is a maximum of **256** total evaluated leaf pack node instances
     (inclusive). An expanded graph with 256 leaf pack instances is admitted; 257 is refused before
     evaluation.
+
 - Per Core §10, these limits are implementation-defined limits rather than immutable JPS
   conformance requirements. Traversal bounds are enforced during static validation before pack
   evaluation.
@@ -289,6 +356,7 @@ To prevent resource exhaustion (graph bomb attacks or combinatorial expansion):
 ### 6. Execution Models and the Equivalence Conjecture
 
 Two primary execution models exist for evaluating reusable subgraphs:
+
 1. **Hierarchical Evaluation**: The runtime evaluates parent nodes in topological order. Upon
    reaching a subgraph node, it evaluates the subgraph's internal nodes according to the subgraph's
    local topological order, resolves its exposed outputs, and resumes parent evaluation.
@@ -296,12 +364,15 @@ Two primary execution models exist for evaluating reusable subgraphs:
    flattened DAG with hierarchical instance addresses, sorting all nodes into a unified global order.
 
 #### The Equivalence Conjecture
+
 Under pure dataflow (where nodes have no side effects, global state, or ambient mutation), and where
 all leaf nodes evaluate to valid dispositions, hierarchical evaluation and flattened topological
 execution produce identical final disposition assignments for all exposed nodes.
 
 #### Why Equivalence is Not a Settled Theorem for Failures
+
 Equivalence does not automatically hold when evaluations fail, request handoffs, or record traces:
+
 - Suppose parent node `z` feeds one input of subgraph `a`. Hierarchical execution waits for `z` to
   complete before evaluating any node in `a`.
 - A flattened global scheduler might evaluate an independent node `a.x` inside subgraph `a` before
@@ -316,8 +387,10 @@ Equivalence does not automatically hold when evaluations fail, request handoffs,
 ### 7. Dispositions, Evaluator Errors, and Handoff Provenance
 
 #### Preservation of Core §8.3 Dispositions
+
 At leaf nodes and exported output boundaries, dispositions MUST be complete, valid Core §8.3
 objects:
+
 - `kind`: Exactly one of `"outcome"`, `"not-applicable"`, or `"unresolved"`.
 - `outcomeId`: Present if and only if `kind` is `"outcome"`, naming a declared outcome of the pack.
 - `reasons`: Sorted array of Core reason identifiers. Empty if and only if `kind` is `"outcome"`.
@@ -327,6 +400,7 @@ objects:
 - Kinds MUST NOT be mapped to `outcomeId` or flattened into string fields.
 
 #### Core §8.4 Evaluator Errors vs. Undefined Comparisons
+
 - Evaluator errors are defined strictly by the **four Core §8.4 error classes**, evaluated in fixed
   precedence order:
   1. `pack-not-conformant`
@@ -339,6 +413,7 @@ objects:
   an evaluation error; it produces `unknown` and resolves normally under the pack's `onUnknown` rule.
 
 #### Handoff Provenance and Destinationless Requests
+
 - Per Core §6.7 and §8.3, a pack's configured escalation target (e.g. `"Sanctions Compliance Officer"`)
   is a display name for a role or queue, not a network address. The disposition does not echo or
   rewrite the target.
@@ -353,31 +428,34 @@ objects:
       {
         "originatingNode": "/contractor-sanctions/ofac-check",
         "target": {
-          "kind": "role",
+          "kind": "human-role",
           "name": "Sanctions Compliance Officer"
         },
         "triggeredBy": ["missing-required-evidence"]
       },
-      {
-        "originatingNode": "/contractor-sanctions/pep-check",
-        "triggeredBy": ["exception-escalation"]
-      }
-    ]
-  }
+    {
+      "originatingNode": "/contractor-sanctions/pep-check",
+      "triggeredBy": ["exception-escalation"]
+    }
+  ]
 }
 ```
+
 - Operational routing, message queues, and delivery mechanisms are explicitly outside the scope of
   this contract.
 
 ### 8. Traces, Observability, and Verifier Boundaries
 
 #### Provenance Claim
+
 Nested evaluation traces record the parent invocation, bound inputs, loaded document digests, and
 per-node execution traces transported per ADR-0031. This provides structured provenance, not an
 unconditional guarantee of "complete auditability."
 
 #### Verifier-Held Artifacts and Trust Assumptions
+
 An independent external verifier reproducing a composite run MUST hold:
+
 1. The exact bytes actually loaded for the parent graph document and all referenced subgraph
    documents.
 2. The exact bytes actually loaded for all referenced pack documents.
@@ -389,6 +467,7 @@ Canonical serialization (RFC 8785) is used strictly when comparing Core §8.3 di
 byte-for-byte; it is NEVER used for document identity or hash verification of graph or pack files.
 
 Trust assumptions:
+
 - The verifier trusts that the execution engine satisfies Core §3.4 evaluator conformance.
 - Content digests attest that bytes have not changed; they do not attest that the policy within
   those bytes is lawful, authorized, or up to date.
@@ -583,7 +662,8 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
   "evidenceRequirements": [
     {
       "id": "ofac-clearance-document",
-      "label": "OFAC Clearance Certificate",
+      "description": "OFAC Clearance Certificate",
+      "kind": "document",
       "required": true
     }
   ],
@@ -596,16 +676,18 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "id": "rule-cleared",
       "description": "Clear when valid non-empty legal name is present.",
       "when": {
-        "op": "present",
-        "path": "/subject/legal-name"
+        "op": "fact",
+        "path": "/subject/legal-name",
+        "operator": "not-equals",
+        "value": ""
       },
       "outcome": "cleared",
-      "onUnknown": "fail"
+      "onUnknown": "ignore"
     }
   ],
   "escalation": {
     "target": {
-      "kind": "role",
+      "kind": "human-role",
       "name": "Sanctions Compliance Officer"
     },
     "triggers": ["missing-required-evidence"]
@@ -633,9 +715,10 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "id": "rule-domestic",
       "description": "Domestic US jurisdiction is cleared.",
       "when": {
-        "op": "equal",
-        "left": { "op": "pointer", "path": "/subject/jurisdiction" },
-        "right": { "op": "literal", "value": "US" }
+        "op": "fact",
+        "path": "/subject/jurisdiction",
+        "operator": "equals",
+        "value": "US"
       },
       "outcome": "cleared",
       "onUnknown": "ignore"
@@ -646,11 +729,13 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "id": "exc-sanctioned-country",
       "description": "Sanctioned jurisdiction triggers direct escalation without configured target.",
       "when": {
-        "op": "equal",
-        "left": { "op": "pointer", "path": "/subject/jurisdiction" },
-        "right": { "op": "literal", "value": "IR" }
+        "op": "fact",
+        "path": "/subject/jurisdiction",
+        "operator": "equals",
+        "value": "IR"
       },
-      "effect": "escalate"
+      "effect": "escalate",
+      "onUnknown": "ignore"
     }
   ]
 }
@@ -676,17 +761,19 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "id": "rule-both-cleared",
       "description": "Cleared if both OFAC and PEP verdicts are cleared.",
       "when": {
-        "op": "and",
+        "op": "all",
         "conditions": [
           {
-            "op": "equal",
-            "left": { "op": "pointer", "path": "/screening/ofac-verdict" },
-            "right": { "op": "literal", "value": "cleared" }
+            "op": "fact",
+            "path": "/screening/ofac-verdict",
+            "operator": "equals",
+            "value": "cleared"
           },
           {
-            "op": "equal",
-            "left": { "op": "pointer", "path": "/screening/pep-verdict" },
-            "right": { "op": "literal", "value": "cleared" }
+            "op": "fact",
+            "path": "/screening/pep-verdict",
+            "operator": "equals",
+            "value": "cleared"
           }
         ]
       },
@@ -717,17 +804,19 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "id": "rule-all-clear",
       "description": "Approve when both vendor and subcontractor have cleared screening.",
       "when": {
-        "op": "and",
+        "op": "all",
         "conditions": [
           {
-            "op": "equal",
-            "left": { "op": "pointer", "path": "/screening/vendor-cleared" },
-            "right": { "op": "literal", "value": "cleared" }
+            "op": "fact",
+            "path": "/screening/vendor-cleared",
+            "operator": "equals",
+            "value": "cleared"
           },
           {
-            "op": "equal",
-            "left": { "op": "pointer", "path": "/screening/contractor-cleared" },
-            "right": { "op": "literal", "value": "cleared" }
+            "op": "fact",
+            "path": "/screening/contractor-cleared",
+            "operator": "equals",
+            "value": "cleared"
           }
         ]
       },
@@ -766,7 +855,7 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
     "node": "procurement-approval",
     "disposition": {
       "kind": "unresolved",
-      "reasons": ["unknown"],
+      "reasons": ["no-match"],
       "handoff": {
         "state": "none"
       }
@@ -776,7 +865,7 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
     {
       "originatingNode": "/contractor-sanctions/ofac-check",
       "target": {
-        "kind": "role",
+        "kind": "human-role",
         "name": "Sanctions Compliance Officer"
       },
       "triggeredBy": ["missing-required-evidence"]
@@ -841,7 +930,7 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "output": {
         "screening-verdict": {
           "kind": "unresolved",
-          "reasons": ["unknown"],
+          "reasons": ["no-match"],
           "handoff": {
             "state": "none"
           }
@@ -871,7 +960,7 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
         "composite-risk": {
           "disposition": {
             "kind": "unresolved",
-            "reasons": ["unknown"],
+            "reasons": ["no-match"],
             "handoff": {
               "state": "none"
             }
@@ -883,7 +972,7 @@ JSON text shown above, without a trailing newline; if stored with a trailing new
       "type": "pack",
       "disposition": {
         "kind": "unresolved",
-        "reasons": ["unknown"],
+        "reasons": ["no-match"],
         "handoff": {
           "state": "none"
         }
@@ -962,6 +1051,7 @@ A parent graph node specifying an inconsistent version:
 ## Conformance
 
 When an experimental implementation is built, test vectors should exercise:
+
 - Positive: Multi-instance subgraph resolution with distinct inputs and correct Core §8.3 outputs.
 - Negative: Direct reference recursion (`A -> A`).
 - Negative: Mutual reference recursion (`A -> B -> A`).
@@ -983,6 +1073,7 @@ When an experimental implementation is built, test vectors should exercise:
   2. *Judgment Pack Desk* (`judgment-pack-desk`): Visual authoring canvas and validator implementation
      in TypeScript/Node, supporting subgraph node creation, visual interface port mapping, and
      rehearsal evaluation.
+
 - **Authoring Tools Ownership**: Command-line authoring utilities, build-time macro expansion, and
   template stamping belong to the Desk repository and external tooling, not to the specification.
 - **Decision Ownership**: As noted in Issue [#129](https://github.com/Judgment-Pack/judgment-pack-spec/issues/129),
