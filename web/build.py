@@ -355,6 +355,15 @@ PAGES = (
         source_ref="main",
     ),
     Page(
+        "spec/policy.md",
+        PurePosixPath("spec/policy/index.html"),
+        "Policy content and governing adoption",
+        "Policy draft approved conditional on required green CI and PR 218 merge; immutable content and exact governing adoption, with no published conformance claim.",
+        "spec",
+        "Draft companion — conditional acceptance",
+        source_ref="main",
+    ),
+    Page(
         "docs/field-guide.md",
         PurePosixPath("field-guide/index.html"),
         "Field guide",
@@ -693,7 +702,7 @@ PAGES = (
         "RFC 0023: Policy content and governing adoption",
         "Review proposal for immutable policy content and exact governing adoption, with a proposed draft 1.0.0 contract, a frozen non-normative prototype and unresolved trust and live governance contracts.",
         "proposals",
-        "Review proposal",
+        "Draft companion — conditional acceptance",
         source_ref="main",
     ),
     Page(
@@ -1622,6 +1631,19 @@ def build_routes(manifest: dict) -> dict[str, PurePosixPath | str]:
             ),
         }
     )
+    # Review corpus files are source-only until their independent release. Schema
+    # resources also resolve directly at their exact, format-versioned $id URLs.
+    for directory in ("conformance/policy", "schema/policy"):
+        for path in (ROOT / directory).rglob("*"):
+            source = path.relative_to(ROOT).as_posix()
+            if path.is_file():
+                routes[source] = GITHUB_BLOB_ROOT + "main/" + source
+            elif path.is_dir():
+                routes[source] = "https://github.com/Judgment-Pack/judgment-pack-spec/tree/main/" + source
+    for source in CANONICAL_SCHEMA_SOURCES:
+        if "/policy/" in source:
+            schema_id = json.loads((ROOT / source).read_text("utf-8"))["$id"]
+            routes[source] = PurePosixPath(urlsplit(schema_id).path.lstrip("/"))
     for path in sorted((ROOT / "conformance" / "evaluation" / "packs").glob("*.json")):
         source = path.relative_to(ROOT).as_posix()
         routes[source] = PurePosixPath("artifacts") / PurePosixPath(source)
@@ -2274,6 +2296,8 @@ UNPUBLISHED_ARTIFACT_DIRECTORIES = (
     PurePosixPath("conformance/evaluation/staged"),
     PurePosixPath("conformance/witness"),
     PurePosixPath("conformance/dialect"),
+    PurePosixPath("conformance/policy"),
+    PurePosixPath("schema/policy"),
 )
 
 
@@ -2490,6 +2514,11 @@ CANONICAL_SCHEMA_SOURCES = (
     "schema/conformance-manifest-0.1.0-draft.schema.json",
     "conformance/manifest.schema.json",
     "conformance/evaluation/manifest.schema.json",
+    "schema/policy/1.0.0/common.schema.json",
+    "schema/policy/1.0.0/policy.schema.json",
+    "schema/policy/1.0.0/governing-adoption.schema.json",
+    "conformance/policy/1.0.0/fixture.schema.json",
+    "conformance/policy/1.0.0/vectors.schema.json",
 )
 
 
