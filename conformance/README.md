@@ -1,6 +1,6 @@
 # Conformance corpus
 
-This directory contains 116 focused research-preview cases for testing the carrier, structural, and
+This directory contains 118 focused conformance cases for testing the carrier, structural, and
 semantic requirements of Judgment Pack Core `0.2.0-draft`. It is versioned with the draft but is not
 yet a complete or normative conformance suite. Evaluator behavior is out of scope *here*: it has its
 own corpus, in [`evaluation/`](evaluation/README.md), which is normative for the evaluator conformance
@@ -12,7 +12,12 @@ holds the 54 vectors of its companion document,
 [`dialect/`](https://github.com/Judgment-Pack/judgment-pack-spec/tree/main/conformance/dialect)
 holds the reference Runner's 47 preparation vectors for its companion document,
 [`spec/dialect.md`](../spec/dialect.md), staged until the next `specVersion` opens: in no corpus,
-and not served by the site.
+and not served by the site. The [Policy offline-reader promotion](policy/1.0.0/README.md)
+holds 124 agreement vectors for [its draft companion class](../spec/policy.md).
+RFC 0023 has conditional draft approval upon required green CI and PR 218 merge;
+the default branch remains Review until then. These vectors become a released
+corpus only under their exact Policy tag and a maintainer-published GitHub
+release. Passing fixtures alone establishes no Core or Policy conformance claim.
 
 [`manifest.json`](manifest.json) is the machine-readable case index. Its shape is defined by
 [`manifest.schema.json`](manifest.schema.json).

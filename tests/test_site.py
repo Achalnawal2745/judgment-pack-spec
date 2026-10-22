@@ -23,7 +23,7 @@ WITNESS_VECTORS = "conformance/witness"
 # directory either (conformance/dialect/README.md). The companion document they belong to is
 # published.
 DIALECT_VECTORS = "conformance/dialect"
-UNPUBLISHED_DIRECTORIES = (STAGED_EVALUATION_ROWS, WITNESS_VECTORS, DIALECT_VECTORS)
+UNPUBLISHED_DIRECTORIES = (STAGED_EVALUATION_ROWS, WITNESS_VECTORS, DIALECT_VECTORS, "conformance/policy", "schema/policy")
 
 # The retired pre-publication brand, and the raw hosting domain its identifiers used, must not appear
 # anywhere the site publishes. The tokens are assembled from fragments deliberately: the repository
@@ -249,11 +249,27 @@ class StaticSiteTests(unittest.TestCase):
         index = (self.output / "rfcs" / "index.html").read_text(encoding="utf-8")
         self.assertIn('href="0018-dialect/"', index)
 
-    def test_policy_companion_is_in_review_with_source_only_candidates(self) -> None:
+    def test_policy_promotion_prose_is_discoverable_and_raw_artifacts_stay_staged(self) -> None:
+        page = self.output / "spec/policy/index.html"
+        document = page.read_text(encoding="utf-8")
+        self.assertIn("Draft companion — conditional acceptance", document)
+        self.assertIn("Policy offline-reader class", document)
+        self.assertIn("default-branch RFC remains Review", document)
+        self._assert_nothing_published_under("conformance/policy")
+        self.assertFalse((self.output / "artifacts/schema/policy").exists())
+        for name in ("common", "policy", "governing-adoption", "fixture", "vectors"):
+            directory = "schema/policy/1.0.0" if name in ("common", "policy", "governing-adoption") else "conformance/policy/1.0.0"
+            source = ROOT / directory / f"{name}.schema.json"
+            published = self.output / "schema/policy/1.0.0" / f"{name}.schema.json"
+            self.assertEqual(published.read_bytes(), source.read_bytes())
+
+    def test_policy_draft_acceptance_is_conditional_with_source_only_archives(self) -> None:
         page = self.output / "rfcs" / "0023-policy-companion" / "index.html"
         document = page.read_text(encoding="utf-8")
-        self.assertIn('<span class="artifact-label">Review proposal</span>', document)
-        self.assertIn("This is an open proposal, not part of JPS.", document)
+        self.assertIn('<span class="artifact-label">Draft companion — conditional acceptance</span>', document)
+        self.assertIn("This PR proposes acceptance", document)
+        self.assertIn("required CI passes", document)
+        self.assertIn("Until then the default-branch RFC remains Review", document)
         self.assertIn("blob/main/rfcs/0023-policy-companion.md", document)
         self.assertIn("View current source", document)
         self.assertIn(
@@ -806,9 +822,9 @@ class StaticSiteTests(unittest.TestCase):
         self.assertIn('<details class="preview-banner">', page)
         self.assertNotIn('<details class="preview-banner" open>', page)
         self.assertIn('<summary class="preview-banner-summary">', page)
-        self.assertIn("Research preview", page)
+        self.assertIn("Draft \u00b7", page)
         self.assertIn(
-            "No compatibility guarantee. Not for consequential production decisions.",
+            "A `0.x` draft in production use by adopters: pin the exact draft and runtime release; no compatibility guarantee between drafts.",
             page,
         )
 
