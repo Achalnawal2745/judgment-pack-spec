@@ -422,7 +422,7 @@ PAGES = (
         "SECURITY.md",
         PurePosixPath("project/security/index.html"),
         "Security policy",
-        "The research-preview security boundary and vulnerability reporting process.",
+        "The security boundary and vulnerability reporting process.",
         "project",
     ),
     Page(
@@ -2415,7 +2415,7 @@ def build_llms_txt(output_root: Path, config: BuildConfig) -> None:
 > {SITE_DESCRIPTION}
 
 - Current draft: `{SITE_VERSION}`
-- Status: draft; no compatibility, production-readiness, certification, truth, safety, or authorization claim
+- Status: draft, in production use by adopters; no compatibility, certification, truth, safety, or authorization claim
 - License: Apache-2.0
 - Canonical site: {guide_url(PurePosixPath("index.html"))}
 
